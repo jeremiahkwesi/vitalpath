@@ -1,0 +1,41 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Avatars at avatars/{uid}/... (public read for profile display)
+    match /avatars/{uid}/{allPaths=**} {
+      // Publicly readable; change to "if isSignedIn() && request.auth.uid == uid" to restrict
+      allow read: if true;
+
+      // Owner can write images to their own folder
+      allow write: if isSignedIn() &&
+        request.auth.uid == uid &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Optional: meal images (if you save meal photos instead of base64)
+    match /meal-images/{uid}/{allPaths=**} {
+      // Public read simplifies displaying images via download URLs
+      allow read: if true;
+
+      // Owner can write images only
+      allow write: if isSignedIn() &&
+        request.auth.uid == uid &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Optional: private user content (exports or other files), private to owner
+    match /userContent/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
