@@ -8,36 +8,51 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  FlatList,
+  SectionList,
   ListRenderItemInfo,
 } from "react-native";
 import {
   searchExercises,
   Exercise,
+  groupByPrimaryMuscle,
+  getHowToSteps,
   addCustomExercise,
+  appendExerciseToRoutineDraft,
 } from "../services/workoutsDb";
 import { useAuth } from "../context/AuthContext";
 import { useActivity } from "../context/ActivityContext";
 import { fonts } from "../constants/fonts";
 import { useTheme } from "../ui/ThemeProvider";
-import { SkeletonRow } from "../ui/components/Skeleton";
 import { useToast } from "../ui/components/Toast";
 import { useHaptics } from "../ui/hooks/useHaptics";
+import {
+  getExerciseFavorites,
+  toggleExerciseFavorite,
+} from "../utils/exerciseFavorites";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = { visible: boolean; onClose: () => void };
-
-const ROW_HEIGHT = 84;
 
 export default function WorkoutsSearchModal({ visible, onClose }: Props) {
   const { theme } = useTheme();
   const toast = useToast();
   const h = useHaptics();
+  const { user } = useAuth();
+  const { addWorkout } = useActivity();
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Exercise[]>([]);
-  const { user } = useAuth();
-  const { addWorkout } = useActivity();
+  const [favNames, setFavNames] = useState<string[]>([]);
+
+  const uid = user?.uid || null;
+
+  useEffect(() => {
+    (async () => {
+      const favs = await getExerciseFavorites(uid);
+      setFavNames(favs.map((f) => f.name.toLowerCase()));
+    })();
+  }, [uid]);
 
   useEffect(() => {
     let active = true;
@@ -49,7 +64,7 @@ export default function WorkoutsSearchModal({ visible, onClose }: Props) {
       }
       setLoading(true);
       try {
-        const data = await searchExercises(q, { uid: user?.uid, limit: 50 });
+        const data = await searchExercises(q, { limit: 80 });
         if (active) setResults(data);
       } finally {
         setLoading(false);
@@ -60,28 +75,22 @@ export default function WorkoutsSearchModal({ visible, onClose }: Props) {
       active = false;
       clearTimeout(t);
     };
-  }, [query, user?.uid]);
+  }, [query]);
+
+  const sections = useMemo(() => groupByPrimaryMuscle(results), [results]);
 
   const quickAdd = useCallback(
     async (e: Exercise) => {
-      await addWorkout({
-        name: e.name,
-        type: "strength",
-        duration: 20,
-        caloriesBurned: 100,
-      });
+      await addWorkout({ name: e.name, type: "strength", duration: 20, caloriesBurned: 100 });
       h.impact("light");
       toast.success(`${e.name} added (20m / 100 kcal)`);
     },
     [addWorkout, h, toast]
   );
 
-  const saveToMyExercises = useCallback(
+  const saveToMy = useCallback(
     async (e: Exercise) => {
-      if (!user?.uid) {
-        toast.error("Sign in required");
-        return;
-      }
+      if (!user?.uid) return toast.error("Sign in required");
       await addCustomExercise(user.uid, {
         name: e.name,
         category: e.category,
@@ -96,121 +105,102 @@ export default function WorkoutsSearchModal({ visible, onClose }: Props) {
     [h, toast, user?.uid]
   );
 
-  const keyExtractor = useCallback((item: Exercise) => item.id, []);
-  const getItemLayout = useCallback(
-    (_: Exercise[] | null | undefined, index: number) => ({
-      length: ROW_HEIGHT,
-      offset: ROW_HEIGHT * index,
-      index,
-    }),
-    []
+  const addToBuilder = useCallback(
+    async (e: Exercise) => {
+      await appendExerciseToRoutineDraft(uid, e);
+      h.impact("light");
+      toast.success(`${e.name} added to Builder`);
+      onClose();
+    },
+    [h, onClose, toast, uid]
+  );
+
+  const toggleFav = useCallback(
+    async (e: Exercise) => {
+      const nowFav = await toggleExerciseFavorite(uid, { name: e.name, id: e.id });
+      const next = await getExerciseFavorites(uid);
+      setFavNames(next.map((f) => f.name.toLowerCase()));
+      toast.info(nowFav ? "Added to favorites" : "Removed from favorites");
+    },
+    [toast, uid]
   );
 
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<Exercise>) => (
-      <View
-        style={[
-          styles.row,
-          { borderBottomColor: theme.colors.border, minHeight: ROW_HEIGHT },
-        ]}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={`Exercise: ${item.name}`}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={1}>
-            {item.category || "General"} • {(item.equipment || []).slice(0, 2).join(", ") || "Bodyweight"}
-          </Text>
-          {!!item.description && (
-            <Text numberOfLines={2} style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-              {item.description}
+    ({ item }: ListRenderItemInfo<Exercise>) => {
+      const muscles = [...(item.primaryMuscles || []), ...(item.secondaryMuscles || [])];
+      const steps = getHowToSteps(item).slice(0, 2);
+      const fav = favNames.includes(item.name.toLowerCase());
+      return (
+        <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={2}>
+              {item.name}
             </Text>
-          )}
+            <Text style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={2}>
+              {muscles.length ? muscles.join(", ") : "Target: General / Bodyweight"}
+            </Text>
+            {steps.length > 0 && (
+              <Text style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={2}>
+                {steps.map((s, i) => `${i + 1}. ${s}`).join("  ")}
+              </Text>
+            )}
+          </View>
+          <View style={{ gap: 6, alignItems: "center" }}>
+            <TouchableOpacity onPress={() => toggleFav(item)} accessibilityLabel="Toggle favorite">
+              <Ionicons name={fav ? "star" : "star-outline"} size={20} color={fav ? "#F4C20D" : theme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.colors.primary }]} onPress={() => quickAdd(item)}>
+              <Text style={styles.btnText}>Log</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: "#455A64" }]} onPress={() => addToBuilder(item)}>
+              <Text style={styles.btnText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: "#7E57C2" }]} onPress={() => saveToMy(item)}>
+              <Text style={styles.btnText}>Save</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity
-          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          style={[styles.btn, { backgroundColor: theme.colors.primary }]}
-          onPress={() => quickAdd(item)}
-          accessibilityRole="button"
-          accessibilityLabel={`Add ${item.name}`}
-        >
-          <Text style={styles.btnText}>Add</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          style={[styles.btn, { backgroundColor: "#7E57C2" }]}
-          onPress={() => saveToMyExercises(item)}
-          accessibilityRole="button"
-          accessibilityLabel={`Save ${item.name} to My Exercises`}
-        >
-          <Text style={styles.btnText}>Save</Text>
-        </TouchableOpacity>
-      </View>
-    ),
-    [quickAdd, saveToMyExercises, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted]
+      );
+    },
+    [addToBuilder, favNames, quickAdd, saveToMy, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted, toggleFav]
   );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-          ]}
-        >
+        <View style={[styles.sheet, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Search Exercises
-            </Text>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close exercises search">
+            <Text style={[styles.title, { color: theme.colors.text }]}>Search Exercises</Text>
+            <TouchableOpacity onPress={onClose}>
               <Text style={[styles.link, { color: theme.colors.primary }]}>Close</Text>
             </TouchableOpacity>
           </View>
 
           <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.colors.surface2,
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              },
-            ]}
+            style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
             placeholder="Search (e.g., bench, squat, plank)"
             placeholderTextColor={theme.colors.textMuted}
             value={query}
             onChangeText={setQuery}
             autoFocus={Platform.OS !== "web"}
-            accessibilityLabel="Search exercises"
           />
 
           {loading ? (
-            <View style={{ paddingVertical: 8 }}>
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
-            </View>
-          ) : results.length === 0 ? (
-            <Text style={{ color: theme.colors.textMuted }}>
-              Try common exercises (bench press, squat, pull-up…)
-            </Text>
+            <Text style={{ color: theme.colors.textMuted }}>Searching…</Text>
+          ) : sections.length === 0 ? (
+            <Text style={{ color: theme.colors.textMuted }}>Try “bench press”, “squat”, “plank”…</Text>
           ) : (
-            <FlatList
-              data={results}
-              keyExtractor={keyExtractor}
+            <SectionList
+              sections={sections}
+              keyExtractor={(item) => item.id}
               renderItem={renderItem}
-              getItemLayout={getItemLayout}
-              initialNumToRender={12}
-              windowSize={8}
-              removeClippedSubviews
+              renderSectionHeader={({ section }) => (
+                <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>{section.title}</Text>
+              )}
+              stickySectionHeadersEnabled
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 8 }}
-              style={{ maxHeight: "72%" }}
-              accessibilityLabel="Exercises results"
+              style={{ maxHeight: "76%" }}
             />
           )}
         </View>
@@ -226,8 +216,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontFamily: fonts.semiBold },
   link: { fontFamily: fonts.semiBold },
   input: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10, fontFamily: fonts.regular },
-  row: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 8, borderBottomWidth: 1, gap: 8 },
+  sectionHeader: { fontFamily: fonts.semiBold, marginTop: 12, marginBottom: 6 },
+  row: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 1, gap: 10 },
   name: { fontSize: 16, fontFamily: fonts.semiBold },
-  btn: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignSelf: "center" },
+  btn: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", minWidth: 80 },
   btnText: { color: "#fff", fontFamily: fonts.semiBold, fontSize: 12 },
 });

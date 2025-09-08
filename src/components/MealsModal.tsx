@@ -8,14 +8,15 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
-import { useActivity } from "../../src/context/ActivityContext";
-import { fonts } from "../../src/constants/fonts";
-import { useTheme } from "../../src/ui/ThemeProvider";
-import { useToast } from "../../src/ui/components/Toast";
-import { useHaptics } from "../../src/ui/hooks/useHaptics";
+import { useActivity } from "../context/ActivityContext";
+import { fonts } from "../constants/fonts";
+import { useTheme } from "../ui/ThemeProvider";
+import { useToast } from "../ui/components/Toast";
+import { useHaptics } from "../ui/hooks/useHaptics";
+import Select from "../ui/components/Select";
 
 type Props = { visible: boolean; onClose: () => void };
 
@@ -43,7 +44,14 @@ export default function MealsModal({ visible, onClose }: Props) {
   }, [todayActivity]);
 
   const resetForm = () =>
-    setForm({ name: "", type: "lunch", calories: "", protein: "", carbs: "", fat: "" });
+    setForm({
+      name: "",
+      type: "lunch",
+      calories: "",
+      protein: "",
+      carbs: "",
+      fat: "",
+    });
 
   const onAdd = async () => {
     const calories = parseInt(form.calories || "0", 10);
@@ -78,137 +86,147 @@ export default function MealsModal({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Meals Today
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
-                Close
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+            ]}
+          >
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                Meals Today
               </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ marginBottom: 12 }}>
-            <Text style={{ color: theme.colors.text }}>
-              Calories: {Math.round(totals.calories)} kcal
-            </Text>
-            <Text style={{ color: theme.colors.textMuted }}>
-              P {Math.round(totals.protein)}g • C {Math.round(totals.carbs)}g •
-              F {Math.round(totals.fat)}g
-            </Text>
-          </View>
-
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-            {(todayActivity?.meals || []).map((m) => (
-              <View
-                key={m.id}
-                style={[
-                  styles.mealItem,
-                  { borderBottomColor: theme.colors.border },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>{m.name}</Text>
-                  <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-                    {m.type} • {m.calories} kcal • P {m.macros.protein}g, C{" "}
-                    {m.macros.carbs}g, F {m.macros.fat}g
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => onDelete(m.id)}>
-                  <Text style={[styles.delete, { color: "#FF6B6B" }]}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={{ marginTop: 12 }}>
-            <Text style={[styles.section, { color: theme.colors.text }]}>Add Meal</Text>
-            <TextInput
-              style={[
-                styles.input,
-                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-              ]}
-              placeholder="Name (e.g., Chicken salad)"
-              placeholderTextColor={theme.colors.textMuted}
-              value={form.name}
-              onChangeText={(t) => setForm((s) => ({ ...s, name: t }))}
-            />
-            <View style={styles.row}>
-              <View style={[styles.pickerContainer, { borderColor: theme.colors.border }]}>
-                <Picker
-                  selectedValue={form.type}
-                  onValueChange={(v) => setForm((s) => ({ ...s, type: v as any }))}
-                  style={[styles.picker, { color: theme.colors.text }]}
-                >
-                  <Picker.Item label="Breakfast" value="breakfast" />
-                  <Picker.Item label="Lunch" value="lunch" />
-                  <Picker.Item label="Dinner" value="dinner" />
-                  <Picker.Item label="Snack" value="snack" />
-                </Picker>
-              </View>
-              <TextInput
-                style={[
-                  styles.input,
-                  { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-                ]}
-                placeholder="Calories"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-                value={form.calories}
-                onChangeText={(t) => setForm((s) => ({ ...s, calories: t }))}
-              />
-            </View>
-            <View style={styles.row}>
-              <TextInput
-                style={[
-                  styles.input,
-                  { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-                ]}
-                placeholder="Protein (g)"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="decimal-pad"
-                value={form.protein}
-                onChangeText={(t) => setForm((s) => ({ ...s, protein: t }))}
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-                ]}
-                placeholder="Carbs (g)"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="decimal-pad"
-                value={form.carbs}
-                onChangeText={(t) => setForm((s) => ({ ...s, carbs: t }))}
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-                ]}
-                placeholder="Fat (g)"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="decimal-pad"
-                value={form.fat}
-                onChangeText={(t) => setForm((s) => ({ ...s, fat: t }))}
-              />
+              <TouchableOpacity onPress={onClose}>
+                <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
-              onPress={onAdd}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ color: theme.colors.text }}>
+                Calories: {Math.round(totals.calories)} kcal
+              </Text>
+              <Text style={{ color: theme.colors.textMuted }}>
+                P {Math.round(totals.protein)}g • C {Math.round(totals.carbs)}g •
+                F {Math.round(totals.fat)}g
+              </Text>
+            </View>
+
+            <ScrollView
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
-              <Text style={styles.addBtnText}>Add Meal</Text>
-            </TouchableOpacity>
+              {(todayActivity?.meals || []).map((m) => (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.mealItem,
+                    { borderBottomColor: theme.colors.border },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>{m.name}</Text>
+                    <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+                      {m.type} • {m.calories} kcal • P {m.macros.protein}g, C{" "}
+                      {m.macros.carbs}g, F {m.macros.fat}g
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => onDelete(m.id)}>
+                    <Text style={{ color: "#FF6B6B", fontFamily: fonts.semiBold }}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.section, { color: theme.colors.text }]}>Add Meal</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                ]}
+                placeholder="Name (e.g., Chicken salad)"
+                placeholderTextColor={theme.colors.textMuted}
+                value={form.name}
+                onChangeText={(t) => setForm((s) => ({ ...s, name: t }))}
+              />
+              <View style={styles.row}>
+                <Select
+                  label="Meal type"
+                  value={form.type}
+                  items={[
+                    { label: "Breakfast", value: "breakfast" },
+                    { label: "Lunch", value: "lunch" },
+                    { label: "Dinner", value: "dinner" },
+                    { label: "Snack", value: "snack" },
+                  ]}
+                  onChange={(v) => setForm((s) => ({ ...s, type: v as any }))}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                  ]}
+                  placeholder="Calories"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.calories}
+                  onChangeText={(t) => setForm((s) => ({ ...s, calories: t }))}
+                />
+              </View>
+              <View style={styles.row}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                  ]}
+                  placeholder="Protein (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="decimal-pad"
+                  value={form.protein}
+                  onChangeText={(t) => setForm((s) => ({ ...s, protein: t }))}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                  ]}
+                  placeholder="Carbs (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="decimal-pad"
+                  value={form.carbs}
+                  onChangeText={(t) => setForm((s) => ({ ...s, carbs: t }))}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                  ]}
+                  placeholder="Fat (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="decimal-pad"
+                  value={form.fat}
+                  onChangeText={(t) => setForm((s) => ({ ...s, fat: t }))}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
+                onPress={onAdd}
+              >
+                <Text style={styles.addBtnText}>Add Meal</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -221,12 +239,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontFamily: fonts.semiBold },
   mealItem: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1 },
   mealName: { fontSize: 16, fontFamily: fonts.semiBold },
-  delete: { fontFamily: fonts.semiBold },
   section: { fontFamily: fonts.semiBold, marginBottom: 8 },
   input: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8, fontFamily: fonts.regular },
   row: { flexDirection: "row", gap: 8, alignItems: "center" },
-  pickerContainer: { borderWidth: 1, borderRadius: 8 },
-  picker: { height: 44, width: 150 },
   addBtn: { borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 4 },
   addBtnText: { color: "#fff", fontFamily: fonts.semiBold, fontSize: 14 },
 });

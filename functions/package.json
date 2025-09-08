@@ -1,7 +1,9 @@
 {
   "name": "functions",
   "main": "lib/index.js",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "20"
+  },
   "type": "commonjs",
   "scripts": {
     "build": "tsc",
@@ -13,12 +15,12 @@
   "dependencies": {
     "@google/generative-ai": "^0.11.3",
     "firebase-admin": "^11.11.1",
-    "firebase-functions": "^4.4.1",
+    "firebase-functions": "^6.4.0",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
-    "typescript": "^5.4.5",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
   }
 }

@@ -1,9 +1,12 @@
 // functions/src/index.ts
-import * as functions from "firebase-functions";
+import { setGlobalOptions } from "firebase-functions/v2";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
+import logger from "firebase-functions/logger";
+import { initializeApp as adminInit } from "firebase-admin/app";
+import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 
-// Type-only import to avoid ESM issues with CJS build.
-import type { GenerativeModel } from "@google/generative-ai";
-
+// Ensure fetch exists (Node 20 usually has it)
 async function ensureFetch() {
   if (typeof (globalThis as any).fetch !== "function") {
     const { default: fetch } = await import("node-fetch");
@@ -11,14 +14,22 @@ async function ensureFetch() {
   }
 }
 
-// ---------- Helpers ----------
-function kcalFromEnergy(value: number, unit?: string) {
-  if (!Number.isFinite(value)) return 0;
-  return unit && unit.toUpperCase() === "KJ"
-    ? Math.round(value / 4.184)
-    : Math.round(value);
-}
+setGlobalOptions({
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+});
 
+adminInit();
+const adminDb = getAdminFirestore();
+
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const USDA_API_KEY = defineSecret("USDA_API_KEY");
+const NUTRITIONIX_APP_ID = defineSecret("NUTRITIONIX_APP_ID");
+const NUTRITIONIX_API_KEY = defineSecret("NUTRITIONIX_API_KEY");
+const HUGGING_FACE_TOKEN = defineSecret("HUGGING_FACE_TOKEN");
+
+// Types
 type HistoryMsg = { role: "user" | "assistant"; content: string };
 type Profile = {
   name?: string;
@@ -47,205 +58,8 @@ type Profile = {
   allergies?: string[];
 };
 
-async function getGeminiModel(
-  modelName = "gemini-1.5-flash"
-): Promise<GenerativeModel> {
-  const { GoogleGenerativeAI } = await import("@google/generative-ai");
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "GEMINI_API_KEY not configured"
-    );
-  }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const sys =
-    "You are VitalPath AI, a concise, supportive health assistant.\n" +
-    "- Reference the user's profile and today's stats.\n" +
-    "- Keep replies to 2–5 sentences, actionable, with 1 relevant emoji.\n" +
-    "- Not medical advice; suggest professionals for medical issues.\n" +
-    "- When asked about workouts, first check if you know: location (gym/home) " +
-    "and days per week. If missing, ask a single, clear question to get it. " +
-    "Also consider experience level, available equipment, time per session, and " +
-    "injuries/limitations. Once you have enough, propose a 1-week plan with " +
-    "named exercises (sets × reps, rest seconds) per day. Keep it concise.";
-  return genAI.getGenerativeModel({
-    model: modelName,
-    systemInstruction: sys,
-  });
-}
-
-// ---------- AI assistant chat ----------
-export const healthChat = functions
-  .region("us-central1")
-  .https.onCall(async (data: any, context) => {
-    const message: string = String(data?.message || "").trim();
-    const profile: Profile = data?.profile || {};
-    const history: HistoryMsg[] = Array.isArray(data?.history)
-      ? data.history
-      : [];
-
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be signed in."
-      );
-    }
-    if (!message) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "message is required"
-      );
-    }
-
-    const model = await getGeminiModel("gemini-1.5-flash");
-
-    const preface =
-      `USER PROFILE\n` +
-      `• Name: ${profile.name || "User"}\n` +
-      `• Age: ${profile.age ?? "N/A"} • Gender: ${profile.gender || "N/A"}\n` +
-      `• Weight: ${profile.weight ?? "N/A"}kg • Height: ${
-        profile.height ?? "N/A"
-      }m\n` +
-      `• Goal: ${profile.goal || "N/A"}\n` +
-      `• Daily Calories: ${profile.dailyCalories ?? "N/A"} kcal\n\n` +
-      `TODAY\n` +
-      `• Calories: ${profile.todayStats?.caloriesConsumed ?? 0} eaten, ${
-        profile.todayStats?.caloriesRemaining ?? 0
-      } remaining\n` +
-      `• Steps: ${profile.todayStats?.steps ?? 0} • Water: ${
-        profile.todayStats?.waterIntake ?? 0
-      } ml\n` +
-      `• Meals: ${profile.todayStats?.mealsCount ?? 0} • Workouts: ${
-        profile.todayStats?.workoutsCount ?? 0
-      }\n` +
-      `• Macros today: P${
-        profile.todayStats?.macros?.protein ?? 0
-      }g C${profile.todayStats?.macros?.carbs ?? 0}g F${
-        profile.todayStats?.macros?.fat ?? 0
-      }g\n` +
-      `• Conditions: ${
-        (profile.healthConditions || []).join(", ") || "None"
-      }\n` +
-      `GUIDELINES\n` +
-      `• If the user requests a workout plan and details are missing, ask: "Gym or home?" and "How many days per week?" (one short question at a time).\n` +
-      `• When sufficient info is available, propose a concise 1-week schedule with named exercises per day (sets × reps, rest seconds). Include substitutions if equipment is unknown.\n`;
-
-    const contents: Array<{
-      role: "user" | "model";
-      parts: Array<{ text: string }>;
-    }> = [];
-
-    if (history.length) {
-      for (const h of history.slice(-8)) {
-        contents.push({
-          role: h.role === "assistant" ? "model" : "user",
-          parts: [{ text: h.content }],
-        });
-      }
-    }
-
-    contents.push({
-      role: "user",
-      parts: [{ text: preface + "\nQUESTION:\n" + message }],
-    });
-
-    try {
-      const result = await model.generateContent({ contents });
-      const reply =
-        ((result as any).response?.text?.() as string | undefined)?.trim?.();
-      return {
-        reply:
-          reply ||
-          "I'm here to help with nutrition and fitness. Ask me anything. 💡",
-      };
-    } catch (e: any) {
-      functions.logger.error("healthChat error", e);
-      throw new functions.https.HttpsError(
-        "internal",
-        `Gemini chat failed: ${e?.message || e}`
-      );
-    }
-  });
-
-// ---------- Meal analyzer (text list) ----------
-export const analyzeMeal = functions
-  .region("us-central1")
-  .https.onCall(async (data: any, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be signed in."
-      );
-    }
-
-    const profile: Profile = data?.profile || {};
-    const items: Array<{
-      name: string;
-      serving?: string;
-      calories?: number;
-      protein?: number;
-      carbs?: number;
-      fat?: number;
-    }> = Array.isArray(data?.items) ? data.items : [];
-
-    if (!items.length) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "items array is required"
-      );
-    }
-
-    const model = await getGeminiModel("gemini-1.5-flash");
-
-    const prompt =
-      `Analyze the following meal for ${profile.name || "the user"}.\n` +
-      `Return a concise analysis (3–6 sentences): summarize calories/macros, ` +
-      `compare to the user's daily target if available, and give 2–3 specific ` +
-      `improvements. Be practical and encouraging. 1 emoji.\n\n` +
-      `USER GOAL: ${profile.goal || "N/A"}; Daily Calories: ${
-        profile.dailyCalories ?? "N/A"
-      }\n` +
-      `TARGET MACROS (if available): P${profile.macros?.protein ?? "?"}g ` +
-      `C${profile.macros?.carbs ?? "?"}g F${profile.macros?.fat ?? "?"}g\n\n` +
-      `MEAL ITEMS:\n` +
-      items
-        .map((i, idx) => {
-          const meta = [
-            i.serving ? `serving=${i.serving}` : "",
-            Number.isFinite(i.calories) ? `kcal=${i.calories}` : "",
-            Number.isFinite(i.protein) ? `P=${i.protein}g` : "",
-            Number.isFinite(i.carbs) ? `C=${i.carbs}g` : "",
-            Number.isFinite(i.fat) ? `F=${i.fat}g` : "",
-          ]
-            .filter(Boolean)
-            .join(", ");
-          return `• ${idx + 1}. ${i.name}${meta ? ` (${meta})` : ""}`;
-        })
-        .join("\n");
-
-    try {
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-      const text =
-        ((result as any).response?.text?.() as string | undefined)?.trim?.();
-      return {
-        analysis:
-          text ||
-          "I couldn't analyze this meal. Try adding calories/macros for each item.",
-      };
-    } catch (e: any) {
-      functions.logger.error("analyzeMeal error", e);
-      throw new functions.https.HttpsError(
-        "internal",
-        `Gemini analyzeMeal failed: ${e?.message || e}`
-      );
-    }
-  });
-
-// ---------- Utilities for robust JSON extraction ----------
-function tryParseJSON(anyText: string): any | null {
+// Helpers
+function tryParseJSON(anyText: string) {
   try {
     return JSON.parse(anyText);
   } catch {
@@ -279,79 +93,347 @@ function parseGramsFromText(s?: string) {
   const m = String(s).match(/(\d+(\.\d+)?)\s*g/i);
   return m ? Math.round(parseFloat(m[1])) : 0;
 }
+function kcalFromEnergy(value: number, unit?: string) {
+  if (!Number.isFinite(value)) return 0;
+  return unit && unit.toUpperCase() === "KJ"
+    ? Math.round(value / 4.184)
+    : Math.round(value);
+}
 
-// ---------- Meal analyzer (image → nutrition JSON) ----------
-export const analyzeMealImage = functions
-  .region("us-central1")
-  .https.onCall(async (data: any, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be signed in."
+async function getGeminiModel(modelName = "gemini-1.5-flash") {
+  const { GoogleGenerativeAI } = await import("@google/generative-ai");
+  const key = GEMINI_API_KEY.value();
+  if (!key)
+    throw new HttpsError(
+      "failed-precondition",
+      "GEMINI_API_KEY not configured"
+    );
+  const genAI = new GoogleGenerativeAI(key);
+  return genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction:
+      "You are VitalPath AI, a concise, supportive health assistant.\n" +
+      "- Reference the user's profile and today's stats.\n" +
+      "- Keep replies to 2–5 sentences, actionable, with 1 emoji.\n" +
+      "- Not medical advice.\n" +
+      "- For workouts, if details are missing (gym/home, days/week), ask once then propose a concise 7‑day plan.",
+  });
+}
+
+// Ghanaian dish lexicon (expand as needed)
+const GHANA_FOOD_LEXICON: Array<{ canonical: string; patterns: RegExp[] }> = [
+  { canonical: "Jollof Rice", patterns: [/jollof/i, /west african jollof/i] },
+  { canonical: "Waakye", patterns: [/waakye/i, /rice.*beans.*ghana/i] },
+  {
+    canonical: "Banku with Okro Stew",
+    patterns: [/banku.*ok(ro|ra)/i, /okro.*banku/i],
+  },
+  { canonical: "Kenkey with Fish", patterns: [/kenkey/i] },
+  { canonical: "Fufu with Light Soup", patterns: [/fufu/i, /foofoo/i] },
+  { canonical: "Kelewele", patterns: [/kelewele/i, /spiced.*plantain/i] },
+  { canonical: "Grilled Tilapia", patterns: [/tilapia/i] },
+  { canonical: "Shito Sauce", patterns: [/shito/i] },
+];
+
+function canonicalizeGhanaDishName(
+  name: string,
+  labelHint?: string,
+  country?: string
+): string {
+  const text = `${labelHint || ""} ${name}`.trim();
+  const preferGhana = country && /ghana/i.test(country);
+  for (const entry of GHANA_FOOD_LEXICON) {
+    for (const p of entry.patterns) {
+      if (p.test(text)) return entry.canonical;
+    }
+  }
+  // If country Ghana and generic dish string contains "stew", "soup" etc., keep as-is.
+  if (preferGhana) return name;
+  return name;
+}
+
+// ---------- AI Chat ----------
+export const healthChat = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (req) => {
+    const message: string = String(req.data?.message || "").trim();
+    const profile: Profile = req.data?.profile || {};
+    const history: HistoryMsg[] = Array.isArray(req.data?.history)
+      ? req.data.history
+      : [];
+    if (!req.auth)
+      throw new HttpsError("unauthenticated", "Must be signed in.");
+    if (!message)
+      throw new HttpsError("invalid-argument", "message is required");
+
+    const model = await getGeminiModel("gemini-1.5-flash");
+
+    const preface =
+      `USER PROFILE\n` +
+      `• Name: ${profile.name || "User"}\n` +
+      `• Age: ${profile.age ?? "N/A"} • Gender: ${
+        profile.gender || "N/A"
+      }\n` +
+      `• Weight: ${profile.weight ?? "N/A"}kg • Height: ${
+        profile.height ?? "N/A"
+      }m\n` +
+      `• Goal: ${profile.goal || "N/A"}\n` +
+      `• Daily Calories: ${profile.dailyCalories ?? "N/A"} kcal\n\n` +
+      `TODAY\n` +
+      `• Calories: ${profile.todayStats?.caloriesConsumed ?? 0} eaten, ${
+        profile.todayStats?.caloriesRemaining ?? 0
+      } remaining\n` +
+      `• Steps: ${profile.todayStats?.steps ?? 0} • Water: ${
+        profile.todayStats?.waterIntake ?? 0
+      } ml\n` +
+      `• Meals: ${profile.todayStats?.mealsCount ?? 0} • Workouts: ${
+        profile.todayStats?.workoutsCount ?? 0
+      }\n` +
+      `• Macros today: P${profile.todayStats?.macros?.protein ?? 0}g C${
+        profile.todayStats?.macros?.carbs ?? 0
+      }g F${profile.todayStats?.macros?.fat ?? 0}g\n` +
+      `• Conditions: ${(profile.healthConditions || []).join(", ") || "None"}\n`;
+
+    const contents: Array<{
+      role: "user" | "model";
+      parts: Array<{ text: string }>;
+    }> = [];
+    for (const h of (history || []).slice(-8)) {
+      contents.push({
+        role: h.role === "assistant" ? "model" : "user",
+        parts: [{ text: h.content }],
+      });
+    }
+    contents.push({
+      role: "user",
+      parts: [{ text: preface + "\nQUESTION:\n" + message }],
+    });
+
+    try {
+      const result = await (await model).generateContent({ contents });
+      const reply = ((result as any).response?.text?.() as
+        | string
+        | undefined)?.trim?.();
+      return {
+        reply:
+          reply ||
+          "I'm here to help with nutrition and fitness. Ask me anything. 💡",
+      };
+    } catch (e: any) {
+      logger.error("healthChat error", e);
+      throw new HttpsError("internal", `Gemini chat failed: ${e?.message || e}`);
+    }
+  }
+);
+
+// ---------- Analyze Meal (text list) ----------
+export const analyzeMeal = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (req) => {
+    if (!req.auth)
+      throw new HttpsError("unauthenticated", "Must be signed in.");
+    const profile: Profile = req.data?.profile || {};
+    const items: Array<{
+      name: string;
+      serving?: string;
+      calories?: number;
+      protein?: number;
+      carbs?: number;
+      fat?: number;
+    }> = Array.isArray(req.data?.items) ? req.data.items : [];
+    if (!items.length)
+      throw new HttpsError("invalid-argument", "items array is required");
+
+    const model = await getGeminiModel("gemini-1.5-flash");
+    const prompt =
+      `Analyze the following meal for ${profile.name || "the user"}.\n` +
+      `Return 3–6 concise sentences: calories/macros summary, compare to the user's target, and 2–3 specific improvements. 1 emoji.\n` +
+      `STRICTLY: Respect dietary preferences (${(profile.dietaryPreferences ||
+        []).join(", ") || "none"}) and exclude allergens (${(profile.allergies ||
+        []).join(", ") || "none"}).\n\n` +
+      `USER TARGETS: Calories=${profile.dailyCalories ?? "?"} kcal; Macros: P${
+        profile.macros?.protein ?? "?"
+      }g C${profile.macros?.carbs ?? "?"}g F${
+        profile.macros?.fat ?? "?"
+      }g\n\n` +
+      `MEAL ITEMS:\n` +
+      items
+        .map((i, idx) => {
+          const meta = [
+            i.serving ? `serving=${i.serving}` : "",
+            Number.isFinite(i.calories) ? `kcal=${i.calories}` : "",
+            Number.isFinite(i.protein) ? `P=${i.protein}g` : "",
+            Number.isFinite(i.carbs) ? `C=${i.carbs}g` : "",
+            Number.isFinite(i.fat) ? `F=${i.fat}g` : "",
+          ]
+            .filter(Boolean)
+            .join(", ");
+          return `• ${idx + 1}. ${i.name}${meta ? ` (${meta})` : ""}`;
+        })
+        .join("\n");
+
+    try {
+      const result = await (
+        await model
+      ).generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+      const text = ((result as any).response?.text?.() as
+        | string
+        | undefined)?.trim?.();
+      return {
+        analysis:
+          text ||
+          "I couldn't analyze this meal. Try adding calories/macros for each item.",
+      };
+    } catch (e: any) {
+      logger.error("analyzeMeal error", e);
+      throw new HttpsError(
+        "internal",
+        `Gemini analyzeMeal failed: ${e?.message || e}`
       );
     }
+  }
+);
 
-    const imageBase64: string = String(data?.imageBase64 || "");
-    const mimeType: string = String(data?.mimeType || "image/jpeg");
-    const profile: Profile = data?.profile || {};
+// Normalize Hugging Face label shapes
+function pickLabels(
+  json: any
+): Array<{ label?: string; score?: number }> {
+  // Handles:
+  // - [{ label, score }, ...]
+  // - [{ labels: [...] }]
+  // - { labels: [...] }
+  // - { data: { labels: [...] } }
+  if (!json) return [];
+  if (Array.isArray(json)) {
+    if (json.length && Array.isArray(json[0]?.labels)) {
+      return json[0].labels as any[];
+    }
+    return json as any[];
+  }
+  if (Array.isArray((json as any).labels)) {
+    return (json as any).labels as any[];
+  }
+  if (Array.isArray((json as any)?.data?.labels)) {
+    return (json as any).data.labels as any[];
+  }
+  return [];
+}
 
-    if (!imageBase64) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "imageBase64 is required"
+// ---------- Hugging Face Image Labeler ----------
+export const imageLabeler = onCall(
+  { secrets: [HUGGING_FACE_TOKEN] },
+  async (req) => {
+    await ensureFetch();
+    if (!req.auth)
+      throw new HttpsError("unauthenticated", "Must be signed in.");
+    const imageBase64: string = String(req.data?.imageBase64 || "");
+    const mimeType: string = String(req.data?.mimeType || "image/jpeg");
+    if (!imageBase64)
+      throw new HttpsError("invalid-argument", "imageBase64 is required");
+
+    const token = HUGGING_FACE_TOKEN.value();
+    if (!token)
+      throw new HttpsError(
+        "failed-precondition",
+        "HUGGING_FACE_TOKEN not configured"
+      );
+
+    const MODEL = "nateraw/food101"; // swap to a Ghana-focused model if available
+    const url = `https://api-inference.huggingface.co/models/${MODEL}`;
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: [
+            {
+              name: "image",
+              type: "image",
+              data: imageBase64,
+              mime_type: mimeType,
+            },
+          ],
+          options: { wait_for_model: true },
+        }),
+      });
+      const json: any = await res.json();
+      const arr = pickLabels(json);
+      const top =
+        Array.isArray(arr) && arr.length
+          ? arr.sort(
+              (a: any, b: any) =>
+                Number(b?.score || 0) - Number(a?.score || 0)
+            )[0]
+          : null;
+      return { label: top?.label || "", score: Number(top?.score || 0) };
+    } catch (e: any) {
+      logger.error("imageLabeler error", e);
+      throw new HttpsError(
+        "internal",
+        `HF labeler failed: ${e?.message || e}`
       );
     }
-    if (imageBase64.length > 8_000_000) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "image too large; please try a smaller image"
-      );
-    }
+  }
+);
+
+// ---------- Analyze Meal Image (with Ghanaian lexicon) ----------
+export const analyzeMealImage = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (req) => {
+    if (!req.auth)
+      throw new HttpsError("unauthenticated", "Must be signed in.");
+
+    const imageBase64: string = String(req.data?.imageBase64 || "");
+    const mimeType: string = String(req.data?.mimeType || "image/jpeg");
+    const profile: Profile = req.data?.profile || {};
+    const labelHint: string = String(req.data?.labelHint || "");
+    if (!imageBase64)
+      throw new HttpsError("invalid-argument", "imageBase64 is required");
+    if (imageBase64.length > 8_000_000)
+      throw new HttpsError("invalid-argument", "image too large");
 
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value() || "");
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       systemInstruction:
-        "You are VitalPath AI. Analyze food images and estimate nutrition " +
-        "for the actual portion shown (do NOT report per 100 g). " +
-        "Estimate total portion weight in grams. If the meal has multiple " +
-        "components (e.g., banku, stew, fish), estimate grams and macros for " +
-        "each component. Respond ONLY with valid JSON that matches the schema.",
+        "You are VitalPath AI. Analyze food images and estimate nutrition for the served portion (not per 100 g). " +
+        "Estimate portion grams and give totals. If labelHint is provided, use it as the likely dish name. " +
+        "Return only valid JSON per the schema.",
     });
 
     const schemaV2 =
-      `Respond ONLY with JSON matching this schema:\n` +
+      `Respond ONLY with JSON:\n` +
       `{\n` +
       `  "item": {\n` +
       `    "name": "string",\n` +
-      `    "portionGrams": number, // estimated total grams for the portion\n` +
-      `    "servingText": "string", // e.g., "1 bowl (420 g)"\n` +
-      `    "items": [ // optional per-component breakdown\n` +
-      `      {\n` +
-      `        "name": "string", "grams": number,\n` +
-      `        "calories": number, "protein": number, "carbs": number, "fat": number,\n` +
-      `        "micros": { [k: string]: number }\n` +
-      `      }\n` +
-      `    ],\n` +
-      `    "totals": {\n` +
-      `      "calories": number, "protein": number, "carbs": number, "fat": number,\n` +
-      `      "micros": {\n` +
-      `        "fiber": number, "sodium": number, "potassium": number,\n` +
-      `        "vitaminC": number, "calcium": number, "iron": number\n` +
-      `      }\n` +
-      `    },\n` +
-      `    "confidence": number // 0..1\n` +
+      `    "portionGrams": number,\n` +
+      `    "servingText": "string",\n` +
+      `    "items": [ { "name": "string", "grams": number, "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { [k: string]: number } } ],\n` +
+      `    "totals": { "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { "fiber": number, "sodium": number, "potassium": number, "vitaminC": number, "calcium": number, "iron": number } },\n` +
+      `    "confidence": number\n` +
       `  }\n` +
       `}`;
 
     const userContext =
-      `User goal: ${profile.goal || "N/A"}; Daily kcal target: ` +
-      `${profile.dailyCalories ?? "N/A"}.\n` +
-      `Report totals for the served portion only (not per 100 g). If unsure, ` +
-      `make a reasonable estimate.`;
+      `User goal: ${profile.goal || "N/A"}; Daily kcal target: ${
+        profile.dailyCalories ?? "N/A"
+      }.\n` +
+      `Dietary preferences: ${(profile.dietaryPreferences || []).join(", ") ||
+        "none"}; Allergies: ${(profile.allergies || []).join(", ") ||
+        "none"}.\n` +
+      (labelHint ? `Likely dish name: ${labelHint}.\n` : "") +
+      `Report totals for the portion only. Make a reasonable estimate if unsure.`;
 
-    const imagePart = { inlineData: { data: imageBase64, mimeType } };
+    const imagePart = {
+      inlineData: { data: imageBase64, mimeType },
+    } as any;
 
     function sumItems(items: any[]) {
       const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 } as any;
@@ -361,10 +443,8 @@ export const analyzeMealImage = functions
         totals.protein += num(it?.protein);
         totals.carbs += num(it?.carbs);
         totals.fat += num(it?.fat);
-        const im = it?.micros || {};
-        for (const k of Object.keys(im)) {
-          const v = num(im[k]);
-          micros[k] = (micros[k] || 0) + v;
+        for (const [k, v] of Object.entries(it?.micros || {})) {
+          micros[k] = (micros[k] || 0) + num(v);
         }
       }
       return { totals, micros };
@@ -378,13 +458,12 @@ export const analyzeMealImage = functions
             parts: [
               {
                 text:
-                  "Analyze this meal image and estimate nutrition.\n" +
-                  "Return ONLY the JSON object, no extra text.\n" +
+                  "Analyze this meal image and estimate nutrition. Return ONLY the JSON.\n" +
                   schemaV2 +
                   "\n\n" +
                   userContext,
               },
-              imagePart as any,
+              imagePart,
             ],
           },
         ],
@@ -393,14 +472,10 @@ export const analyzeMealImage = functions
       const raw =
         ((result as any).response?.text?.() as string | undefined) || "";
       const parsed = tryParseJSON(raw);
-      if (!parsed) {
-        functions.logger.error("analyzeMealImage JSON parse failed", { raw });
-        throw new Error("Model returned non-JSON");
-      }
+      if (!parsed) throw new Error("Model returned non-JSON");
 
-      // Normalize to v2 contract
       const pItem = parsed?.item || {};
-      const name = String(pItem?.name || "Meal");
+      const name0 = String(pItem?.name || labelHint || "Meal");
       const portionGrams = num(pItem?.portionGrams);
       const servingText =
         String(pItem?.servingText || "").trim() ||
@@ -432,7 +507,6 @@ export const analyzeMealImage = functions
         iron: num(pItem?.totals?.micros?.iron),
       };
 
-      // If totals missing, derive from items.
       if (
         !totals.calories &&
         !totals.protein &&
@@ -442,14 +516,13 @@ export const analyzeMealImage = functions
       ) {
         const s = sumItems(items);
         totals = s.totals;
-        // Only fill known micros
         micros = {
-          fiber: num(s.micros.fiber),
-          sodium: num(s.micros.sodium),
-          potassium: num(s.micros.potassium),
-          vitaminC: num(s.micros.vitaminC),
-          calcium: num(s.micros.calcium),
-          iron: num(s.micros.iron),
+          fiber: num((s.micros as any).fiber),
+          sodium: num((s.micros as any).sodium),
+          potassium: num((s.micros as any).potassium),
+          vitaminC: num((s.micros as any).vitaminC),
+          calcium: num((s.micros as any).calcium),
+          iron: num((s.micros as any).iron),
         };
       }
 
@@ -458,8 +531,14 @@ export const analyzeMealImage = functions
         items.reduce((a: number, b: any) => a + num(b.grams), 0) ||
         parseGramsFromText(servingText) ||
         0;
-
       const confidence = clamp01(num(pItem?.confidence) || 0.7);
+
+      // Ghanaian canonicalization
+      const name = canonicalizeGhanaDishName(
+        name0,
+        labelHint,
+        profile.country
+      );
 
       return {
         item: {
@@ -472,43 +551,36 @@ export const analyzeMealImage = functions
         },
       };
     } catch (e: any) {
-      functions.logger.error("analyzeMealImage error", e);
-      throw new functions.https.HttpsError(
+      logger.error("analyzeMealImage error", e);
+      throw new HttpsError(
         "internal",
         `Gemini image analysis failed: ${e?.message || e}`
       );
     }
-  });
+  }
+);
 
-// ---------- USDA search (big DB) ----------
-export const usdaSearch = functions
-  .region("us-central1")
-  .https.onCall(async (data: any) => {
+// ---------- USDA Search ----------
+export const usdaSearch = onCall(
+  { secrets: [USDA_API_KEY] },
+  async (req) => {
     await ensureFetch();
+    const query: string = String(req.data?.query || "").trim();
+    const page: number = Number(req.data?.page || 1);
+    const pageSize: number = Math.min(Number(req.data?.pageSize || 50), 200);
+    if (!query)
+      throw new HttpsError("invalid-argument", "query is required");
 
-    const query: string = String(data?.query || "").trim();
-    const page: number = Number(data?.page || 1);
-    const pageSize: number = Math.min(Number(data?.pageSize || 50), 200);
-
-    if (!query) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "query is required"
-      );
-    }
-
-    const apiKey = process.env.USDA_API_KEY;
-    if (!apiKey) {
-      throw new functions.https.HttpsError(
+    const key = USDA_API_KEY.value();
+    if (!key)
+      throw new HttpsError(
         "failed-precondition",
         "USDA_API_KEY not configured"
       );
-    }
 
     const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(
-      apiKey
+      key
     )}`;
-
     const body = {
       query,
       pageNumber: page,
@@ -525,10 +597,7 @@ export const usdaSearch = functions
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`USDA ${res.status}: ${text}`);
-      }
+      if (!res.ok) throw new Error(`USDA ${res.status}: ${await res.text()}`);
       const json: any = await res.json();
       const foods: any[] = Array.isArray(json.foods) ? json.foods : [];
       const totalHits = Number(json.totalHits || 0);
@@ -554,7 +623,6 @@ export const usdaSearch = functions
           f.servingSize && f.servingSizeUnit
             ? `${f.servingSize} ${String(f.servingSizeUnit).toLowerCase()}`
             : "100 g";
-
         return {
           id: `fdc-${f.fdcId}`,
           name: f.description || "Food item",
@@ -572,28 +640,105 @@ export const usdaSearch = functions
       const hasMore = page * pageSize < totalHits;
       return { items, hasMore };
     } catch (e: any) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `USDA search failed: ${e?.message || e}`
       );
     }
-  });
+  }
+);
 
-// ---------- Curate initial AI plan ----------
-export const curateInitialPlan = functions
-  .region("us-central1")
-  .https.onCall(async (data: any, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be signed in."
+// ---------- Nutritionix Search ----------
+export const nutritionixSearch = onCall(
+  { secrets: [NUTRITIONIX_APP_ID, NUTRITIONIX_API_KEY] },
+  async (req) => {
+    await ensureFetch();
+    const query: string = String(req.data?.query || "").trim();
+    const page: number = Number(req.data?.page || 1);
+    const pageSize: number = Math.min(Number(req.data?.pageSize || 25), 50);
+    if (!query)
+      throw new HttpsError("invalid-argument", "query is required");
+
+    const appId = NUTRITIONIX_APP_ID.value();
+    const key = NUTRITIONIX_API_KEY.value();
+    if (!appId || !key)
+      throw new HttpsError(
+        "failed-precondition",
+        "Nutritionix secrets not configured"
+      );
+
+    const instantUrl = `https://trackapi.nutritionix.com/v2/search/instant?query=${encodeURIComponent(
+      query
+    )}&detailed=true`;
+    const headers = {
+      "x-app-id": appId,
+      "x-app-key": key,
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const res = await fetch(instantUrl, { headers });
+      if (!res.ok) throw new Error(`Instant ${res.status}: ${await res.text()}`);
+      const j = (await res.json()) as any;
+      const branded: any[] = Array.isArray(j.branded) ? j.branded : [];
+      const slice = branded.slice((page - 1) * pageSize, page * pageSize);
+
+      const detailItems: any[] = [];
+      for (const b of slice) {
+        const id = b.nix_item_id;
+        if (!id) continue;
+        const detailUrl = `https://trackapi.nutritionix.com/v2/search/item?nix_item_id=${encodeURIComponent(
+          id
+        )}`;
+        try {
+          const dres = await fetch(detailUrl, { headers });
+          if (!dres.ok) continue;
+          const dj = (await dres.json()) as any;
+          const foods = Array.isArray(dj?.foods) ? dj.foods : [];
+          for (const f of foods) {
+            const serving =
+              f.serving_qty && f.serving_unit
+                ? `${f.serving_qty} ${f.serving_unit}`
+                : "1 serving";
+            detailItems.push({
+              id: `nix-${id}`,
+              name: f.food_name || b.food_name || "Food item",
+              brand: f.brand_name || b.brand_name || undefined,
+              serving,
+              calories: Math.round(Number(f.nf_calories || 0)),
+              protein: Math.round(Number(f.nf_protein || 0)),
+              carbs: Math.round(Number(f.nf_total_carbohydrate || 0)),
+              fat: Math.round(Number(f.nf_total_fat || 0)),
+              barcode: b.upc || undefined,
+              source: "nutritionix",
+            });
+          }
+        } catch {}
+      }
+
+      const hasMore = page * pageSize < branded.length;
+      return { items: detailItems, hasMore };
+    } catch (e: any) {
+      logger.error("nutritionixSearch error", e);
+      throw new HttpsError(
+        "internal",
+        `Nutritionix search failed: ${e?.message || e}`
       );
     }
-    const profile = data?.profile || {};
+  }
+);
+
+// ---------- Curate Initial AI Plan (tight constraints) ----------
+export const curateInitialPlan = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (req) => {
+    if (!req.auth)
+      throw new HttpsError("unauthenticated", "Must be signed in.");
+    const profile = req.data?.profile || {};
     const required = ["age", "weight", "height", "gender", "goal"];
     for (const r of required) {
       if (profile[r] == null || profile[r] === "") {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           `Missing required field: ${r}`
         );
@@ -601,26 +746,45 @@ export const curateInitialPlan = functions
     }
 
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction:
-        "You are VitalPath AI. Create a realistic, safe weekly example " +
-        "plan for workouts + nutrition. Include meals with grams and " +
-        "per-meal component breakdowns when relevant. Include workouts " +
-        "with specific exercises (sets × reps, rest seconds). Respond ONLY " +
-        "with valid JSON that matches the schema.",
-    });
+    const model = new GoogleGenerativeAI(GEMINI_API_KEY.value() || "")
+      .getGenerativeModel({
+        model: "gemini-1.5-flash",
+        systemInstruction:
+          "You are VitalPath AI. Create a realistic, safe weekly example plan for workouts + nutrition. " +
+          "Include meals with grams and (when relevant) per-item component grams. Include workouts with specific exercises (sets×reps, rest seconds). " +
+          "Respond ONLY with valid JSON that matches the schema.",
+      });
+
+    const targets =
+      `TARGETS:\n` +
+      `- Daily Calories: ${
+        profile.dailyCalories ?? "compute safely from profile"
+      }\n` +
+      `- Macros (if provided): P${profile.macros?.protein ?? "?"}g C${
+        profile.macros?.carbs ?? "?"
+      }g F${profile.macros?.fat ?? "?"}g\n`;
+
+    const safety =
+      `STRICT RULES:\n` +
+      `- Each day's total calories must be within ±5% of the daily target.\n` +
+      `- Respect dietary preferences: ${(profile.dietaryPreferences || []).join(
+        ", "
+      ) || "none"}.\n` +
+      `- Exclude allergens completely: ${(profile.allergies || []).join(
+        ", "
+      ) || "none"}.\n` +
+      `- Consider health conditions: ${(profile.healthConditions || []).join(
+        ", "
+      ) || "none"}.\n` +
+      `- Prefer country foods if known (country=${profile.country || "Unknown"}; if Ghana, include typical Ghanaian options appropriately).\n` +
+      `- Use realistic serving grams and per-meal totals.\n`;
 
     const schema =
       `Schema:\n` +
       `{\n` +
       `  "targetCalories": number,\n` +
       `  "macros": {"protein": number, "carbs": number, "fat": number},\n` +
-      `  "micros": {\n` +
-      `    "fiber": number, "sodium": number, "potassium": number,\n` +
-      `    "vitaminC": number, "calcium": number, "iron": number\n` +
-      `  },\n` +
+      `  "micros": {"fiber": number, "sodium": number, "potassium": number, "vitaminC": number, "calcium": number, "iron": number},\n` +
       `  "adjustedTimelineWeeks": number,\n` +
       `  "weeklyPlan": {\n` +
       `    "workouts": [\n` +
@@ -629,28 +793,14 @@ export const curateInitialPlan = functions
       `        "location": "home|gym",\n` +
       `        "focus": "Full Body|Upper|Lower|Push|Pull|Mobility|Cardio",\n` +
       `        "duration": number,\n` +
-      `        "exercises": [\n` +
-      `          {\n` +
-      `            "name": "string", "sets": number, "reps": "string",\n` +
-      `            "restSec": number, "equipment": [ "string" ],\n` +
-      `            "alt": "string"\n` +
-      `          }\n` +
-      `        ],\n` +
-      `        "blocks": [\n` +
-      `          { "name": "string", "type": "cardio|strength|mobility", "duration": number }\n` +
-      `        ]\n` +
+      `        "exercises": [ {"name": "string", "sets": number, "reps": "string", "restSec": number, "equipment": ["string"], "alt": "string"} ],\n` +
+      `        "blocks": [ {"name": "string", "type": "cardio|strength|mobility", "duration": number} ]\n` +
       `      }\n` +
       `    ],\n` +
       `    "meals": [\n` +
       `      {\n` +
       `        "day": "Sun|Mon|Tue|Wed|Thu|Fri|Sat",\n` +
-      `        "items": [\n` +
-      `          {\n` +
-      `            "name": "string", "serving": "string", "grams": number,\n` +
-      `            "calories": number, "protein": number, "carbs": number, "fat": number,\n` +
-      `            "components": [ { "name": "string", "grams": number } ]\n` +
-      `          }\n` +
-      `        ]\n` +
+      `        "items": [ {"name": "string", "serving": "string", "grams": number, "calories": number, "protein": number, "carbs": number, "fat": number, "components": [{"name": "string", "grams": number}]} ]\n` +
       `      }\n` +
       `    ]\n` +
       `  },\n` +
@@ -658,13 +808,11 @@ export const curateInitialPlan = functions
       `  "notes": string\n` +
       `}`;
 
-    const prefs = (profile.dietaryPreferences || []).join(", ") || "none";
-    const allergies = (profile.allergies || []).join(", ") || "none";
-
     const prompt =
-      `Create a personalized, safe plan for the next ` +
-      `${profile.targetTimelineWeeks || 12} weeks.\n` +
-      `User:\n` +
+      `Create a personalized, safe weekly example plan (7 days) for ${
+        profile.name || "the user"
+      }.\n` +
+      `USER:\n` +
       `- Age: ${profile.age}\n` +
       `- Gender: ${profile.gender}\n` +
       `- Height: ${profile.height} m\n` +
@@ -673,14 +821,12 @@ export const curateInitialPlan = functions
       `- Activity: ${profile.activityLevel || "moderate"}\n` +
       `- Goal: ${profile.goal}\n` +
       `- Country: ${profile.country || "Unknown"}\n` +
-      `- Dietary Prefs: ${prefs}\n` +
-      `- Allergies: ${allergies}\n\n` +
-      `Constraints:\n` +
-      `- Keep calorie targets realistic; safe weekly change. Adjust timeline if goal is too aggressive.\n` +
-      `- Provide a 7-day example plan for workouts and meals (typical week).\n` +
-      `- Meals should include grams; mixed meals include per-component grams.\n` +
-      `- Workouts should list specific exercises with sets × reps and rest seconds.\n` +
-      `- Return ONLY JSON that matches the schema below.\n\n` +
+      `- Dietary Prefs: ${(profile.dietaryPreferences || []).join(", ") ||
+        "none"}\n` +
+      `- Allergies: ${(profile.allergies || []).join(", ") || "none"}\n\n` +
+      targets +
+      safety +
+      `Return ONLY JSON per the schema. Ensure daily kcal total within ±5%.\n\n` +
       schema;
 
     function tryParseJSONLocal(s: string) {
@@ -714,15 +860,52 @@ export const curateInitialPlan = functions
         ((result as any).response?.text?.() as string | undefined) || "";
       const plan = tryParseJSONLocal(raw);
       if (!plan) {
-        functions.logger.error("curateInitialPlan parse fail", { raw });
+        logger.error("curateInitialPlan parse fail", { raw });
         throw new Error("Model returned non-JSON");
       }
       return { plan };
     } catch (e: any) {
-      functions.logger.error("curateInitialPlan error", e);
-      throw new functions.https.HttpsError(
+      logger.error("curateInitialPlan error", e);
+      throw new HttpsError(
         "internal",
         `Plan generation failed: ${e?.message || e}`
       );
     }
-  });
+  }
+);
+
+// ---------- Delete User Data ----------
+export const deleteUserData = onCall({}, async (req) => {
+  if (!req.auth) throw new HttpsError("unauthenticated", "Must be signed in.");
+  const uid = req.auth.uid;
+
+  // Delete subcollections under users/{uid}
+  const userRef = adminDb.collection("users").doc(uid);
+  const subcols = await userRef.listCollections();
+  for (const sc of subcols) {
+    const docs = await sc.listDocuments();
+    while (docs.length) {
+      const batch = adminDb.batch();
+      const take = docs.splice(0, 400);
+      for (const d of take) batch.delete(d);
+      await batch.commit();
+    }
+  }
+  await userRef.delete().catch(() => {});
+
+  // activities
+  const actSnap = await adminDb
+    .collection("activities")
+    .where("userId", "==", uid)
+    .get();
+  for (const d of actSnap.docs) await d.ref.delete().catch(() => {});
+
+  // conversations
+  const convSnap = await adminDb
+    .collection("conversations")
+    .where("userId", "==", uid)
+    .get();
+  for (const d of convSnap.docs) await d.ref.delete().catch(() => {});
+
+  return { ok: true };
+});

@@ -1,9 +1,26 @@
 // src/context/ActivityContext.tsx
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Platform } from "react-native";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { db } from "../config/firebase";
 import { useAuth } from "./AuthContext";
+import { Pedometer } from "expo-sensors";
+import { getIntegrations } from "../utils/userSettings";
+
+export type SetType =
+  | "normal"
+  | "superset"
+  | "dropset"
+  | "pyramid"
+  | "amrap"
+  | "timed";
 
 export interface Workout {
   id: string;
@@ -12,6 +29,23 @@ export interface Workout {
   caloriesBurned: number;
   type: "cardio" | "strength" | "flexibility" | "sports" | "other";
   timestamp: Date;
+  details?: {
+    startedAt: number;
+    endedAt: number;
+    totalSets: number;
+    totalReps?: number;
+    items: Array<{
+      exercise: string;
+      groupId?: string;
+      sets: Array<{
+        reps?: string;
+        weight?: number;
+        restSec?: number;
+        type: SetType;
+        completedAt?: number;
+      }>;
+    }>;
+  };
 }
 
 export interface Meal {
@@ -31,7 +65,7 @@ export interface DailyActivity {
   date: string; // YYYY-MM-DD
   steps: number;
   waterIntake: number; // ml
-  sleepHours: number; // new
+  sleepHours: number;
   workouts: Workout[];
   meals: Meal[];
   totalCalories: number;
@@ -47,8 +81,21 @@ interface ActivityContextType {
   addWater: (amount: number) => Promise<void>;
   setSleepHours: (hours: number) => Promise<void>;
   addWorkout: (w: Omit<Workout, "id" | "timestamp">) => Promise<void>;
+  addWorkoutSession: (s: {
+    name: string;
+    duration: number;
+    caloriesBurned: number;
+    type: Workout["type"];
+    startedAt: number;
+    endedAt: number;
+    items: Workout["details"]["items"];
+  }) => Promise<void>;
   removeWorkout: (id: string) => Promise<void>;
   addMeal: (m: Omit<Meal, "id" | "timestamp">) => Promise<void>;
+  updateMeal: (
+    id: string,
+    patch: Partial<Omit<Meal, "id" | "timestamp">>
+  ) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
   getTodayProgress: () => {
     caloriesConsumed: number;
@@ -56,9 +103,14 @@ interface ActivityContextType {
     macrosProgress: { protein: number; carbs: number; fat: number };
     microsProgress: { [key: string]: number };
   };
+  getLastLift: (
+    exercise: string
+  ) => Promise<{ weight?: number; reps?: string } | null>;
 }
 
-const ActivityContext = createContext<ActivityContextType | undefined>(undefined);
+const ActivityContext = createContext<ActivityContextType | undefined>(
+  undefined
+);
 
 export const useActivity = () => {
   const ctx = useContext(ActivityContext);
@@ -67,52 +119,94 @@ export const useActivity = () => {
 };
 
 const localKey = (uid: string, date: string) => `activity:${uid}:${date}`;
+const liftsKey = (uid: string) => `lifts:last:${uid}`;
 
 export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null);
+  const [todayActivity, setTodayActivity] =
+    useState<DailyActivity | null>(null);
   const [loading, setLoading] = useState(true);
-
   const { user, userProfile } = useAuth();
   const todayString = new Date().toISOString().split("T")[0];
 
-  // Refs to avoid repeated initial loads and flicker
   const didInitRef = useRef(false);
   const lastUidRef = useRef<string | null>(null);
   const fetchingRef = useRef(false);
+  const pedoSubRef = useRef<any>(null);
+  const fitnessEnabledRef = useRef<boolean>(true);
 
   useEffect(() => {
-    // Only fetch when UID truly changes
     const uid = user?.uid || null;
-    if (uid === lastUidRef.current && didInitRef.current) {
-      return;
-    }
+    if (uid === lastUidRef.current && didInitRef.current) return;
     lastUidRef.current = uid;
 
     if (!uid) {
-      // No user, clear state
       setTodayActivity(null);
       setLoading(false);
       didInitRef.current = false;
+      stopPedo();
       return;
     }
 
-    // First load shows loader; subsequent refreshes don't toggle loading
+    (async () => {
+      const integ = await getIntegrations(uid);
+      fitnessEnabledRef.current = !!integ.fitnessSync;
+    })();
+
     if (!didInitRef.current) setLoading(true);
     fetchTodayActivity(uid).finally(() => {
       didInitRef.current = true;
       setLoading(false);
+      startPedo();
     });
+
+    return () => stopPedo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
+
+  const startPedo = async () => {
+    if (Platform.OS === "web") return;
+    if (!fitnessEnabledRef.current) return;
+    try {
+      const available = await Pedometer.isAvailableAsync();
+      if (!available) return;
+      pedoSubRef.current = Pedometer.watchStepCount((ev) => {
+        const stepsLive = ev.steps || 0;
+        if (todayActivity) {
+          const next = Math.max(todayActivity.steps || 0, stepsLive);
+          updateActivityDoc({ steps: next });
+        }
+      });
+      const now = new Date();
+      const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0
+      );
+      const count = await Pedometer.getStepCountAsync(start, now);
+      if (todayActivity) {
+        updateActivityDoc({
+          steps: Math.max(todayActivity.steps || 0, count.steps || 0),
+        });
+      }
+    } catch {}
+  };
+  const stopPedo = () => {
+    try {
+      pedoSubRef.current?.remove?.();
+      pedoSubRef.current = null;
+    } catch {}
+  };
 
   const readLocal = async (uid: string, date: string) => {
     try {
       const raw = await AsyncStorage.getItem(localKey(uid, date));
       if (!raw) return null;
       const data = JSON.parse(raw);
-      // revive dates
       data.createdAt = new Date(data.createdAt);
       data.workouts = (data.workouts || []).map((w: any) => ({
         ...w,
@@ -122,48 +216,61 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
         ...m,
         timestamp: new Date(m.timestamp),
       }));
-      // Backward compatibility: ensure sleepHours
       if (typeof data.sleepHours !== "number") data.sleepHours = 0;
       return data as DailyActivity;
     } catch {
       return null;
     }
   };
-
   const writeLocal = async (activity: DailyActivity) => {
     try {
       await AsyncStorage.setItem(
         localKey(activity.userId, activity.date),
         JSON.stringify(activity)
       );
-    } catch (e) {
-      console.log("Local persist failed:", e);
-    }
+    } catch {}
   };
 
   const fetchTodayActivity = async (uid: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-
     const id = `${uid}_${todayString}`;
     const ref = doc(db, "activities", id);
 
-    // 1) Try Firestore
     try {
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        const fromCloud = snap.data() as DailyActivity;
+        const raw = snap.data() as any;
+        const fromCloud: DailyActivity = {
+          ...(raw as any),
+          createdAt: raw?.createdAt?.toDate
+            ? raw.createdAt.toDate()
+            : new Date(raw?.createdAt || Date.now()),
+          workouts: Array.isArray(raw?.workouts)
+            ? raw.workouts.map((w: any) => ({
+                ...w,
+                timestamp: w?.timestamp?.toDate
+                  ? w.timestamp.toDate()
+                  : new Date(w?.timestamp || Date.now()),
+              }))
+            : [],
+          meals: Array.isArray(raw?.meals)
+            ? raw.meals.map((m: any) => ({
+                ...m,
+                timestamp: m?.timestamp?.toDate
+                  ? m.timestamp.toDate()
+                  : new Date(m?.timestamp || Date.now()),
+              }))
+            : [],
+        };
         if (typeof fromCloud.sleepHours !== "number") fromCloud.sleepHours = 0;
         setTodayActivity(fromCloud);
         await writeLocal(fromCloud);
         fetchingRef.current = false;
         return;
       }
-    } catch (e) {
-      console.log("Firestore fetch failed, fallback to local:", e);
-    }
+    } catch {}
 
-    // 2) Fallback to local
     const fromLocal = await readLocal(uid, todayString);
     if (fromLocal) {
       setTodayActivity(fromLocal);
@@ -171,7 +278,6 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    // 3) Create fresh
     const newActivity: DailyActivity = {
       id,
       userId: uid,
@@ -186,34 +292,19 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       micros: {},
       createdAt: new Date(),
     };
-
     try {
       await setDoc(ref, newActivity);
-    } catch (e) {
-      console.log("Cannot write cloud; will use local only:", e);
-    }
+    } catch {}
     await writeLocal(newActivity);
     setTodayActivity(newActivity);
     fetchingRef.current = false;
   };
 
-  const safeCloudMerge = async (updated: DailyActivity) => {
-    // Always save local and update state
-    await writeLocal(updated);
-    setTodayActivity(updated);
-
-    // Best-effort cloud merge; don't toggle loading
-    if (!updated.userId) return;
-    const ref = doc(db, "activities", `${updated.userId}_${updated.date}`);
-    try {
-      await setDoc(ref, updated, { merge: true });
-    } catch (e) {
-      console.log("Cloud merge failed (will catch up later):", e);
-    }
-  };
-
   const computeFromMeals = (meals: Meal[]) => {
-    const totalCalories = meals.reduce((sum, m) => sum + (m.calories || 0), 0);
+    const totalCalories = meals.reduce(
+      (sum, m) => sum + (m.calories || 0),
+      0
+    );
     const macros = meals.reduce(
       (sum, m) => ({
         protein: sum.protein + (m.macros?.protein || 0),
@@ -228,8 +319,17 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       return acc;
     }, {} as { [key: string]: number });
-
     return { totalCalories, macros, micros };
+  };
+
+  const safeCloudMerge = async (updated: DailyActivity) => {
+    await writeLocal(updated);
+    setTodayActivity(updated);
+    if (!updated.userId) return;
+    const ref = doc(db, "activities", `${updated.userId}_${updated.date}`);
+    try {
+      await setDoc(ref, updated, { merge: true });
+    } catch {}
   };
 
   const updateActivityDoc = async (updates: Partial<DailyActivity>) => {
@@ -238,15 +338,12 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     await safeCloudMerge(updated);
   };
 
-  const updateSteps = async (steps: number) => {
-    await updateActivityDoc({ steps });
-  };
-
-  const addWater = async (amount: number) => {
-    const next = (todayActivity?.waterIntake || 0) + amount;
-    await updateActivityDoc({ waterIntake: next });
-  };
-
+  const updateSteps = async (steps: number) =>
+    updateActivityDoc({ steps });
+  const addWater = async (amount: number) =>
+    updateActivityDoc({
+      waterIntake: (todayActivity?.waterIntake || 0) + amount,
+    });
   const setSleepHours = async (hours: number) => {
     const h = Math.max(0, Math.min(24, Math.round(hours * 10) / 10));
     await updateActivityDoc({ sleepHours: h });
@@ -262,8 +359,88 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     await updateActivityDoc({ workouts });
   };
 
+  // Persist last lifts (by exercise name) for progression hints
+  async function updateLastLifts(
+    uid: string,
+    items: Workout["details"]["items"]
+  ) {
+    try {
+      const key = liftsKey(uid);
+      const raw = (await AsyncStorage.getItem(key)) || "{}";
+      const map = JSON.parse(raw) as Record<
+        string,
+        { weight?: number; reps?: string; updatedAt: number }
+      >;
+      for (const it of items || []) {
+        const name = String(it.exercise || "").trim();
+        if (!name) continue;
+        const lastSet = (it.sets || [])
+          .slice()
+          .reverse()
+          .find((s) => s.weight != null || s.reps != null);
+        if (lastSet) {
+          map[name] = {
+            weight: lastSet.weight,
+            reps: lastSet.reps,
+            updatedAt: Date.now(),
+          };
+        }
+      }
+      await AsyncStorage.setItem(key, JSON.stringify(map));
+    } catch {}
+  }
+
+  const getLastLift = async (exercise: string) => {
+    try {
+      const uid = user?.uid;
+      if (!uid) return null;
+      const raw = (await AsyncStorage.getItem(liftsKey(uid))) || "{}";
+      const map = JSON.parse(raw) as Record<
+        string,
+        { weight?: number; reps?: string; updatedAt: number }
+      >;
+      return map[exercise] || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const addWorkoutSession = async (s: {
+    name: string;
+    duration: number;
+    caloriesBurned: number;
+    type: Workout["type"];
+    startedAt: number;
+    endedAt: number;
+    items: Workout["details"]["items"];
+  }) => {
+    const totalSets = s.items.reduce(
+      (acc, it) => acc + (it.sets?.length || 0),
+      0
+    );
+    const newWorkout: Workout = {
+      id: Date.now().toString(),
+      name: s.name,
+      duration: s.duration,
+      caloriesBurned: s.caloriesBurned,
+      type: s.type,
+      timestamp: new Date(),
+      details: {
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+        totalSets,
+        items: s.items,
+      },
+    };
+    const workouts = [...(todayActivity?.workouts || []), newWorkout];
+    await updateActivityDoc({ workouts });
+    if (user?.uid) await updateLastLifts(user.uid, s.items);
+  };
+
   const removeWorkout = async (id: string) => {
-    const workouts = (todayActivity?.workouts || []).filter((w) => w.id !== id);
+    const workouts = (todayActivity?.workouts || []).filter(
+      (w) => w.id !== id
+    );
     await updateActivityDoc({ workouts });
   };
 
@@ -278,6 +455,24 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     await updateActivityDoc({ meals, ...totals });
   };
 
+  const updateMeal = async (
+    id: string,
+    patch: Partial<Omit<Meal, "id" | "timestamp">>
+  ) => {
+    const meals = (todayActivity?.meals || []).map((m) =>
+      m.id === id
+        ? {
+            ...m,
+            ...patch,
+            macros:
+              patch.macros != null ? { ...m.macros, ...patch.macros } : m.macros,
+          }
+        : m
+    );
+    const totals = computeFromMeals(meals);
+    await updateActivityDoc({ meals, ...totals });
+  };
+
   const removeMeal = async (id: string) => {
     const meals = (todayActivity?.meals || []).filter((m) => m.id !== id);
     const totals = computeFromMeals(meals);
@@ -287,8 +482,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
   const getTodayProgress = () => {
     const caloriesConsumed = todayActivity?.totalCalories || 0;
     const targetCalories = userProfile?.dailyCalories || 2000;
-    const caloriesRemaining = Math.max(0, targetCalories - caloriesConsumed);
-
+    const caloriesRemaining = Math.round(Math.max(0, targetCalories - caloriesConsumed));
     const macrosProgress = {
       protein: Math.min(
         100,
@@ -309,7 +503,6 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
           100
       ),
     };
-
     const microsProgress: { [key: string]: number } = {};
     if (userProfile?.micros && todayActivity?.micros) {
       Object.keys(userProfile.micros).forEach((k) => {
@@ -318,7 +511,6 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
         microsProgress[k] = Math.min(100, (consumedMic / targetMic) * 100);
       });
     }
-
     return {
       caloriesConsumed,
       caloriesRemaining,
@@ -336,10 +528,13 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
         addWater,
         setSleepHours,
         addWorkout,
+        addWorkoutSession,
         removeWorkout,
         addMeal,
+        updateMeal,
         removeMeal,
         getTodayProgress,
+        getLastLift,
       }}
     >
       {children}

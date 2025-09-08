@@ -10,16 +10,18 @@ import {
   SafeAreaView,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { httpsCallable } from "firebase/functions";
 import { doc, setDoc } from "firebase/firestore";
+import { useRoute } from "@react-navigation/native";
+
 import { useAuth } from "../src/context/AuthContext";
 import { fonts } from "../src/constants/fonts";
 import { db, functions } from "../src/config/firebase";
 import { useTheme } from "../src/ui/ThemeProvider";
-import Segmented from "../src/ui/components/Segmented";
 import Card from "../src/ui/components/Card";
+import Select from "../src/ui/components/Select";
 
 const GOALS = [
   { label: "Maintain Weight", value: "maintain" },
@@ -51,7 +53,12 @@ type GoalType =
   | "gain_muscle"
   | "lose_fat";
 type GenderType = "male" | "female";
-type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+type ActivityLevel =
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "active"
+  | "very_active";
 type BodyType = "ectomorph" | "mesomorph" | "endomorph" | "other";
 
 const activityFactorMap: Record<ActivityLevel, number> = {
@@ -67,10 +74,16 @@ function adjustByBodyType(
   goal: GoalType,
   bodyType: BodyType
 ): number {
-  if (bodyType === "ectomorph" && (goal === "gain_weight" || goal === "gain_muscle")) {
+  if (
+    bodyType === "ectomorph" &&
+    (goal === "gain_weight" || goal === "gain_muscle")
+  ) {
     return Math.round(baseCalories * 1.07);
   }
-  if (bodyType === "endomorph" && (goal === "lose_weight" || goal === "lose_fat")) {
+  if (
+    bodyType === "endomorph" &&
+    (goal === "lose_weight" || goal === "lose_fat")
+  ) {
     return Math.round(baseCalories * 0.93);
   }
   return Math.round(baseCalories);
@@ -90,7 +103,7 @@ function estimateCaloriesAndMacros(
       ? 10 * weight + 6.25 * (height * 100) - 5 * age + 5
       : 10 * weight + 6.25 * (height * 100) - 5 * age - 161;
 
-  const activityFactor = activityFactorMap[activityLevel] ?? activityFactorMap.moderate;
+  const activityFactor = activityFactorMap[activityLevel] ?? 1.55;
   let calories = bmr * activityFactor;
 
   switch (goal) {
@@ -145,13 +158,17 @@ function estimateCaloriesAndMacros(
 }
 
 export default function ProfileSetupScreen() {
+  const route = useRoute<any>();
+  const initialStepParam = route.params?.initialStep as number | undefined;
+
   const { theme } = useTheme();
   const { updateUserProfile, user, userProfile } = useAuth();
 
-  // Prefill from existing profile if present
   const [name, setName] = useState(userProfile?.name || "");
   const [age, setAge] = useState(
-    userProfile?.age != null && userProfile.age > 0 ? String(userProfile.age) : ""
+    userProfile?.age != null && userProfile.age > 0
+      ? String(userProfile.age)
+      : ""
   );
   const [weight, setWeight] = useState(
     userProfile?.weight ? String(userProfile.weight) : ""
@@ -159,7 +176,9 @@ export default function ProfileSetupScreen() {
   const [height, setHeight] = useState(
     userProfile?.height ? String(userProfile.height) : ""
   );
-  const [gender, setGender] = useState<GenderType>(userProfile?.gender || "male");
+  const [gender, setGender] = useState<GenderType>(
+    userProfile?.gender || "male"
+  );
   const [goal, setGoal] = useState<GoalType>(userProfile?.goal || "maintain");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(
     userProfile?.activityLevel || "moderate"
@@ -179,7 +198,13 @@ export default function ProfileSetupScreen() {
   );
 
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(0); // 0..4
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (typeof initialStepParam === "number") {
+      setStep(Math.max(0, Math.min(4, initialStepParam)));
+    }
+  }, [initialStepParam]);
 
   const recommendedTimelines = useMemo(() => {
     const base = [6, 8, 12, 16, 20, 24, 36, 52];
@@ -193,15 +218,7 @@ export default function ProfileSetupScreen() {
     const w = Number(weight);
     const h = Number(height);
     if (!a || !w || !h) return null;
-    return estimateCaloriesAndMacros(
-      w,
-      h,
-      a,
-      gender,
-      goal,
-      activityLevel,
-      bodyType
-    );
+    return estimateCaloriesAndMacros(w, h, a, gender, goal, activityLevel, bodyType);
   }, [age, weight, height, gender, goal, activityLevel, bodyType]);
 
   const canNext = () => {
@@ -319,7 +336,10 @@ export default function ProfileSetupScreen() {
           key={i}
           style={[
             styles.dot,
-            { backgroundColor: i <= step ? theme.colors.primary : theme.colors.border },
+            {
+              backgroundColor:
+                i <= step ? theme.colors.primary : theme.colors.border,
+            },
           ]}
         />
       ))}
@@ -328,206 +348,211 @@ export default function ProfileSetupScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.appBg }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Complete Your Profile
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-          Help us personalize your AI plan (workouts + meals)
-        </Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+        >
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Complete Your Profile
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+            Help us personalize your AI plan (workouts + meals)
+          </Text>
 
-        <StepDots />
+          <StepDots />
 
-        {/* Step cards */}
-        {step === 0 && (
-          <Card style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Basics
-            </Text>
-            <LabeledInput
-              label="Name *"
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
-            />
-            <LabeledInput
-              label="Age *"
-              value={age}
-              onChangeText={setAge}
-              placeholder="Enter your age"
-              keyboardType="numeric"
-            />
-            <LabeledPicker
-              label="Gender *"
-              selectedValue={gender}
-              onValueChange={setGender}
-              items={[
-                { label: "Male", value: "male" },
-                { label: "Female", value: "female" },
-              ]}
-            />
-            <LabeledInput
-              label="Country *"
-              value={country}
-              onChangeText={setCountry}
-              placeholder="e.g., Ghana"
-            />
-          </Card>
-        )}
-
-        {step === 1 && (
-          <Card style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Body
-            </Text>
-            <LabeledInput
-              label="Weight (kg) *"
-              value={weight}
-              onChangeText={setWeight}
-              placeholder="Enter your weight"
-              keyboardType="decimal-pad"
-            />
-            <LabeledInput
-              label="Height (m) *"
-              value={height}
-              onChangeText={setHeight}
-              placeholder="Enter your height (e.g., 1.75)"
-              keyboardType="decimal-pad"
-            />
-            <LabeledPicker
-              label="Body Type *"
-              selectedValue={bodyType}
-              onValueChange={(v) => setBodyType(v as BodyType)}
-              items={BODY_TYPES.map((b) => ({ label: b.label, value: b.value }))}
-            />
-          </Card>
-        )}
-
-        {step === 2 && (
-          <Card style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Goals
-            </Text>
-            <LabeledPicker
-              label="Primary Goal"
-              selectedValue={goal}
-              onValueChange={(v) => setGoal(v as GoalType)}
-              items={GOALS.map((g) => ({ label: g.label, value: g.value }))}
-            />
-            <LabeledPicker
-              label="Activity Level"
-              selectedValue={activityLevel}
-              onValueChange={(v) => setActivityLevel(v as ActivityLevel)}
-              items={ACTIVITIES.map((a) => ({
-                label: a.replace("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()),
-                value: a,
-              }))}
-            />
-            <LabeledPicker
-              label="Realistic Timeline (weeks)"
-              selectedValue={timelineWeeks}
-              onValueChange={(v) => setTimelineWeeks(Number(v))}
-              items={recommendedTimelines.map((w) => ({ label: `${w}`, value: w }))}
-            />
-          </Card>
-        )}
-
-        {step === 3 && (
-          <Card style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Preferences (optional)
-            </Text>
-            <LabeledTextArea
-              label="Dietary Preferences"
-              value={dietaryPreferences}
-              onChangeText={setDietaryPreferences}
-              placeholder="Comma-separated (e.g., halal, vegetarian, kosher)"
-            />
-            <LabeledTextArea
-              label="Allergies"
-              value={allergies}
-              onChangeText={setAllergies}
-              placeholder="Comma-separated (e.g., peanuts, shellfish)"
-            />
-          </Card>
-        )}
-
-        {step === 4 && (
-          <Card style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Review & Preview
-            </Text>
-            {!preview ? (
-              <Text style={{ color: theme.colors.textMuted }}>
-                Enter age, weight, and height to preview targets.
+          {step === 0 && (
+            <Card style={{ marginTop: 12 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Basics
               </Text>
+              <LabeledInput
+                label="Name *"
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your name"
+              />
+              <LabeledInput
+                label="Age *"
+                value={age}
+                onChangeText={setAge}
+                placeholder="Enter your age"
+                keyboardType="numeric"
+              />
+              <Select
+                label="Gender *"
+                value={gender}
+                items={[
+                  { label: "Male", value: "male" },
+                  { label: "Female", value: "female" },
+                ]}
+                onChange={(v) => setGender(v)}
+              />
+              <LabeledInput
+                label="Country *"
+                value={country}
+                onChangeText={setCountry}
+                placeholder="e.g., Ghana"
+              />
+            </Card>
+          )}
+
+          {step === 1 && (
+            <Card style={{ marginTop: 12 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Body
+              </Text>
+              <LabeledInput
+                label="Weight (kg) *"
+                value={weight}
+                onChangeText={setWeight}
+                placeholder="Enter your weight"
+                keyboardType="decimal-pad"
+              />
+              <LabeledInput
+                label="Height (m) *"
+                value={height}
+                onChangeText={setHeight}
+                placeholder="Enter your height (e.g., 1.75)"
+                keyboardType="decimal-pad"
+              />
+              <Select
+                label="Body Type *"
+                value={bodyType}
+                items={BODY_TYPES.map((b) => ({ label: b.label, value: b.value }))}
+                onChange={(v) => setBodyType(v)}
+              />
+            </Card>
+          )}
+
+          {step === 2 && (
+            <Card style={{ marginTop: 12 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Goals
+              </Text>
+              <Select
+                label="Primary Goal"
+                value={goal}
+                items={GOALS.map((g) => ({ label: g.label, value: g.value }))}
+                onChange={(v) => setGoal(v)}
+              />
+              <Select
+                label="Activity Level"
+                value={activityLevel}
+                items={ACTIVITIES.map((a) => ({
+                  label: a.replace("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()),
+                  value: a as ActivityLevel,
+                }))}
+                onChange={(v) => setActivityLevel(v)}
+              />
+              <Select
+                label="Realistic Timeline (weeks)"
+                value={timelineWeeks}
+                items={recommendedTimelines.map((w) => ({ label: String(w), value: w }))}
+                onChange={(v) => setTimelineWeeks(Number(v))}
+              />
+            </Card>
+          )}
+
+          {step === 3 && (
+            <Card style={{ marginTop: 12 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Preferences (optional)
+              </Text>
+              <LabeledTextArea
+                label="Dietary Preferences"
+                value={dietaryPreferences}
+                onChangeText={setDietaryPreferences}
+                placeholder="Comma-separated (e.g., halal, vegetarian, kosher)"
+              />
+              <LabeledTextArea
+                label="Allergies"
+                value={allergies}
+                onChangeText={setAllergies}
+                placeholder="Comma-separated (e.g., peanuts, shellfish)"
+              />
+            </Card>
+          )}
+
+          {step === 4 && (
+            <Card style={{ marginTop: 12 }}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Review & Preview
+              </Text>
+              {!preview ? (
+                <Text style={{ color: theme.colors.textMuted }}>
+                  Enter age, weight, and height to preview targets.
+                </Text>
+              ) : (
+                <>
+                  <Text style={{ color: theme.colors.text }}>
+                    Estimated daily calories: {preview.calories} kcal
+                  </Text>
+                  <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+                    Macros: P {preview.macros.protein}g • C {preview.macros.carbs}
+                    g • F {preview.macros.fat}g
+                  </Text>
+                </>
+              )}
+              <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+                These targets will save to your profile (you can edit later).
+              </Text>
+            </Card>
+          )}
+
+          <View style={styles.footerRow}>
+            {step > 0 ? (
+              <TouchableOpacity
+                onPress={back}
+                style={[
+                  styles.footerBtn,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.footerBtnText, { color: theme.colors.text }]}>
+                  Back
+                </Text>
+              </TouchableOpacity>
             ) : (
-              <>
-                <Text style={{ color: theme.colors.text }}>
-                  Estimated daily calories: {preview.calories} kcal
-                </Text>
-                <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
-                  Macros: P {preview.macros.protein}g • C {preview.macros.carbs}g • F{" "}
-                  {preview.macros.fat}g
-                </Text>
-              </>
+              <View style={{ flex: 1 }} />
             )}
-            <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-              These targets will save to your profile (you can edit later).
-            </Text>
-          </Card>
-        )}
 
-        {/* Footer actions */}
-        <View style={styles.footerRow}>
-          {step > 0 ? (
-            <TouchableOpacity
-              onPress={back}
-              style={[
-                styles.footerBtn,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.footerBtnText, { color: theme.colors.text }]}>
-                Back
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={{ flex: 1 }} />
-          )}
-
-          {step < 4 ? (
-            <TouchableOpacity
-              onPress={next}
-              style={[
-                styles.footerBtn,
-                { backgroundColor: theme.colors.primary },
-              ]}
-            >
-              <Text style={[styles.footerBtnText, { color: "#fff" }]}>
-                Next
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={loading}
-              style={[
-                styles.footerBtn,
-                { backgroundColor: theme.colors.primary },
-                loading && { opacity: 0.7 },
-              ]}
-            >
-              <Text style={[styles.footerBtnText, { color: "#fff" }]}>
-                {loading ? "Saving…" : "Complete Setup"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
+            {step < 4 ? (
+              <TouchableOpacity
+                onPress={next}
+                style={[styles.footerBtn, { backgroundColor: theme.colors.primary }]}
+              >
+                <Text style={[styles.footerBtnText, { color: "#fff" }]}>
+                  Next
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={loading}
+                style={[
+                  styles.footerBtn,
+                  { backgroundColor: theme.colors.primary },
+                  loading && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={[styles.footerBtnText, { color: "#fff" }]}>
+                  {loading ? "Saving…" : "Complete Setup"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -585,73 +610,13 @@ function LabeledTextArea({
   );
 }
 
-function LabeledPicker<T extends string | number>({
-  label,
-  selectedValue,
-  onValueChange,
-  items,
-}: {
-  label: string;
-  selectedValue: T;
-  onValueChange: (v: T) => void;
-  items: { label: string; value: T }[];
-}) {
-  const { theme } = useTheme();
-  return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
-      <View
-        style={[
-          styles.pickerContainer,
-          { borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
-        ]}
-      >
-        <Picker
-          selectedValue={selectedValue}
-          onValueChange={(v) => onValueChange(v as T)}
-          style={[styles.picker, { color: theme.colors.text }]}
-        >
-          {items.map((it) => (
-            <Picker.Item key={`${it.value}`} label={it.label} value={it.value} />
-          ))}
-        </Picker>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 22,
-    fontFamily: fonts.bold,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    textAlign: "center",
-    marginTop: 4,
-  },
+  title: { fontSize: 22, fontFamily: fonts.bold, textAlign: "center" },
+  subtitle: { fontSize: 14, fontFamily: fonts.regular, textAlign: "center", marginTop: 4 },
   sectionTitle: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 8 },
   label: { fontSize: 14, fontFamily: fonts.semiBold, marginBottom: 6 },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
-    fontSize: 16,
-    fontFamily: fonts.regular,
-  },
-  textArea: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
-    fontSize: 16,
-    fontFamily: fonts.regular,
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
-  pickerContainer: { borderWidth: 1, borderRadius: 10 },
-  picker: { height: 50 },
+  input: { borderRadius: 10, borderWidth: 1, padding: 12, fontSize: 16, fontFamily: fonts.regular },
+  textArea: { borderRadius: 10, borderWidth: 1, padding: 12, fontSize: 16, fontFamily: fonts.regular, minHeight: 90, textAlignVertical: "top" },
   dots: { flexDirection: "row", alignSelf: "center", gap: 6, marginTop: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   footerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },

@@ -10,15 +10,11 @@ import {
   Platform,
   FlatList,
   ListRenderItemInfo,
-  ViewToken,
+  KeyboardAvoidingView,
 } from "react-native";
 import { colors as baseColors } from "../constants/colors";
 import { fonts } from "../constants/fonts";
-import {
-  searchFoods,
-  FoodItem,
-  addCustomFood,
-} from "../services/foodDb";
+import { searchFoods, FoodItem, addCustomFood } from "../services/foodDb";
 import { useActivity } from "../context/ActivityContext";
 import { useAuth } from "../context/AuthContext";
 import { addFavorite } from "../utils/favorites";
@@ -173,11 +169,18 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
           accessibilityLabel={`Food: ${item.name}. ${grams} grams equals ${s.calories} kilocalories.`}
         >
           <View style={{ flex: 1 }}>
-            <Text style={[styles.foodName, { color: theme.colors.text }]} numberOfLines={1}>
+            <Text
+              style={[styles.foodName, { color: theme.colors.text }]}
+              numberOfLines={1}
+            >
               {item.name}
             </Text>
-            <Text style={[styles.foodMeta, { color: theme.colors.textMuted }]} numberOfLines={1}>
-              {item.serving} (base) • {grams} g → {s.calories} kcal • P{s.protein} C{s.carbs} F{s.fat}
+            <Text
+              style={[styles.foodMeta, { color: theme.colors.textMuted }]}
+              numberOfLines={1}
+            >
+              {item.serving} (base) • {grams} g → {s.calories} kcal • P
+              {s.protein} C{s.carbs} F{s.fat}
             </Text>
           </View>
           <TouchableOpacity
@@ -210,129 +213,175 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
         </View>
       );
     },
-    [grams, mealType, onAddFood, onSaveFav, onSaveMyFood, scale, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted]
+    [
+      grams,
+      mealType,
+      onAddFood,
+      onSaveFav,
+      onSaveMyFood,
+      scale,
+      theme.colors.border,
+      theme.colors.primary,
+      theme.colors.text,
+      theme.colors.textMuted,
+    ]
   );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Search Foods</Text>
-            <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close food search">
-              <Text style={[styles.close, { color: theme.colors.primary }]}>Close</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.controls}>
-            <Segmented
-              items={[
-                { label: "Breakfast", value: "breakfast" },
-                { label: "Lunch", value: "lunch" },
-                { label: "Dinner", value: "dinner" },
-                { label: "Snack", value: "snack" },
-              ]}
-              value={mealType}
-              onChange={(v) => setMealType(v as MealType)}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
-              placeholder="Search (e.g., chicken, rice, egg)"
-              placeholderTextColor={theme.colors.textMuted}
-              value={query}
-              onChangeText={setQuery}
-              autoFocus={Platform.OS !== "web"}
-              accessibilityLabel="Search foods"
-              accessibilityHint="Type to search foods by name"
-            />
-          </View>
-
-          <View style={styles.row}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>Portion (g)</Text>
-            <TextInput
-              style={[
-                styles.gramInput,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
-              value={String(grams)}
-              keyboardType="numeric"
-              onChangeText={(t) => {
-                const v = Number(String(t).replace(/[^\d]/g, ""));
-                if (Number.isFinite(v) && v > 0) setGrams(Math.min(1500, v));
-              }}
-              placeholder="grams"
-              placeholderTextColor={theme.colors.textMuted}
-              accessibilityLabel="Portion in grams"
-            />
-            <FlatList
-              data={gramsChips}
-              keyExtractor={(g) => `g-${g}`}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}
-              renderItem={({ item: g }) => (
-                <TouchableOpacity
-                  onPress={() => setGrams(g)}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
-                  ]}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Set portion to ${g} grams`}
-                >
-                  <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>{g}g</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-
-          {/* Results */}
-          {loading ? (
-            <View style={{ paddingVertical: 8 }}>
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
+          <View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: theme.colors.surface,
+                borderTopColor: theme.colors.border,
+              },
+            ]}
+          >
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                Search Foods
+              </Text>
+              <TouchableOpacity
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close food search"
+              >
+                <Text style={[styles.close, { color: theme.colors.primary }]}>
+                  Close
+                </Text>
+              </TouchableOpacity>
             </View>
-          ) : results.length === 0 ? (
-            <Text style={{ color: theme.colors.textMuted, fontFamily: fonts.regular }}>
-              Try searching common items (banana, yogurt, oats…)
-            </Text>
-          ) : (
-            <FlatList
-              data={results}
-              keyExtractor={keyExtractor}
-              renderItem={renderItem}
-              getItemLayout={getItemLayout}
-              initialNumToRender={12}
-              windowSize={8}
-              removeClippedSubviews
-              showsVerticalScrollIndicator={false}
-              accessibilityLabel="Food search results"
-              contentContainerStyle={{ paddingBottom: 8 }}
-              style={{ maxHeight: "70%" }}
-            />
-          )}
-        </View>
+
+            <View style={styles.controls}>
+              <Segmented
+                items={[
+                  { label: "Breakfast", value: "breakfast" },
+                  { label: "Lunch", value: "lunch" },
+                  { label: "Dinner", value: "dinner" },
+                  { label: "Snack", value: "snack" },
+                ]}
+                value={mealType}
+                onChange={(v) => setMealType(v as MealType)}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  },
+                ]}
+                placeholder="Search (e.g., chicken, rice, egg)"
+                placeholderTextColor={theme.colors.textMuted}
+                value={query}
+                onChangeText={setQuery}
+                autoFocus={Platform.OS !== "web"}
+                accessibilityLabel="Search foods"
+                accessibilityHint="Type to search foods by name"
+              />
+            </View>
+
+            <View style={styles.row}>
+              <Text
+                style={[styles.label, { color: theme.colors.text }]}
+              >
+                Portion (g)
+              </Text>
+              <TextInput
+                style={[
+                  styles.gramInput,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  },
+                ]}
+                value={String(grams)}
+                keyboardType="numeric"
+                onChangeText={(t) => {
+                  const v = Number(String(t).replace(/[^\d]/g, ""));
+                  if (Number.isFinite(v) && v > 0) setGrams(Math.min(1500, v));
+                }}
+                placeholder="grams"
+                placeholderTextColor={theme.colors.textMuted}
+                accessibilityLabel="Portion in grams"
+              />
+              <FlatList
+                data={gramsChips}
+                keyExtractor={(g) => `g-${g}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                renderItem={({ item: g }) => (
+                  <TouchableOpacity
+                    onPress={() => setGrams(g)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set portion to ${g} grams`}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.text,
+                        fontFamily: fonts.semiBold,
+                      }}
+                    >
+                      {g}g
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+
+            {loading ? (
+              <View style={{ paddingVertical: 8 }}>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </View>
+            ) : results.length === 0 ? (
+              <Text
+                style={{
+                  color: theme.colors.textMuted,
+                  fontFamily: fonts.regular,
+                }}
+              >
+                Try searching common items (banana, yogurt, oats…)
+              </Text>
+            ) : (
+              <FlatList
+                data={results}
+                keyExtractor={keyExtractor}
+                renderItem={renderItem}
+                getItemLayout={getItemLayout}
+                initialNumToRender={12}
+                windowSize={8}
+                removeClippedSubviews
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                accessibilityLabel="Food search results"
+                contentContainerStyle={{ paddingBottom: 8 }}
+                style={{ maxHeight: "70%" }}
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

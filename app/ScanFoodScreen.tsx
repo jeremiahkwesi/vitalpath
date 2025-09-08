@@ -11,7 +11,8 @@ import {
   TextInput,
   Platform,
 } from "react-native";
-// Lazy import barcode scanner (see below)
+import Constants from "expo-constants";
+// Lazy import barcode scanner only if needed
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
@@ -39,12 +40,14 @@ type Mode = "barcode" | "photo";
 type BarcodeModule = typeof import("expo-barcode-scanner");
 type BarcodeType = BarcodeModule["BarCodeScanner"] | null;
 
+const isExpoGo = Constants.appOwnership === "expo";
+
 export default function ScanFoodScreen() {
   const { theme } = useTheme();
   const toast = useToast();
   const h = useHaptics();
 
-  const [mode, setMode] = useState<Mode>("barcode");
+  const [mode, setMode] = useState<Mode>(isExpoGo ? "photo" : "barcode");
 
   // Barcode lazy module + state
   const [BarcodeScanner, setBarcodeScanner] = useState<BarcodeType>(null);
@@ -72,12 +75,20 @@ export default function ScanFoodScreen() {
     async function loadScanner() {
       setBarcodeError(null);
       if (mode !== "barcode") return;
+      if (isExpoGo) {
+        // In Expo Go, hide barcode and prompt user to use Photo mode or dev build
+        setBarcodeScanner(null);
+        setHasPermission(null);
+        setBarcodeError(
+          "Barcode mode is not available in Expo Go. Use Photo mode, or run a development build to enable barcode scanning."
+        );
+        return;
+      }
       try {
         const mod: BarcodeModule = await import("expo-barcode-scanner");
         const Scanner = mod.BarCodeScanner;
         if (!mounted) return;
         setBarcodeScanner(() => Scanner);
-        // Request permissions after module is ready
         const { status } = await mod.BarCodeScanner.requestPermissionsAsync();
         if (!mounted) return;
         setHasPermission(status === "granted");
@@ -289,7 +300,7 @@ export default function ScanFoodScreen() {
     toast.success(`${m.name} logged to ${m.type}`);
   };
 
-  // Derived display totals based on portion grams
+  // Derived totals based on grams
   const displayTotals = useMemo(() => {
     if (!analysis) return null;
     return scaleTotals(
@@ -334,7 +345,8 @@ export default function ScanFoodScreen() {
       <View style={{ marginBottom: 12 }}>
         <Segmented
           items={[
-            { label: "Barcode", value: "barcode" },
+            // Hide barcode in Expo Go; always show in dev/Xcode/dev client
+            ...(!isExpoGo ? [{ label: "Barcode", value: "barcode" }] : []),
             { label: "Photo", value: "photo" },
           ]}
           value={mode}
@@ -348,7 +360,7 @@ export default function ScanFoodScreen() {
             <View style={styles.center}>
               <Text style={{ color: theme.colors.text }}>
                 {barcodeError ||
-                  "Loading scanner… If it doesn’t load, use Photo mode or a dev build."}
+                  "Loading scanner… If it doesn’t load, use Photo mode or a development build."}
               </Text>
             </View>
           ) : hasPermission === null ? (

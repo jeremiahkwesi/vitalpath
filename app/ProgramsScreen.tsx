@@ -1,244 +1,216 @@
 // app/ProgramsScreen.tsx
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
+  TextInput,
+  Platform,
+  SectionList,
+  ListRenderItemInfo,
+  Switch,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { fonts } from "../src/constants/fonts";
 import { useTheme } from "../src/ui/ThemeProvider";
-import Segmented from "../src/ui/components/Segmented";
-import Card from "../src/ui/components/Card";
-import WorkoutsSearchModal from "../src/components/WorkoutsSearchModal";
-import { useActivity } from "../src/context/ActivityContext";
-import PlanModal from "../src/components/PlanModal";
+import { fonts } from "../src/constants/fonts";
+import { useNavigation } from "@react-navigation/native";
+import {
+  searchExercises,
+  Exercise,
+  groupByPrimaryMuscle,
+  getHowToSteps,
+  appendExerciseToRoutineDraft,
+} from "../src/services/workoutsDb";
 import { useToast } from "../src/ui/components/Toast";
 import { useHaptics } from "../src/ui/hooks/useHaptics";
+import { useAuth } from "../src/context/AuthContext";
+import {
+  getExerciseFavorites,
+  toggleExerciseFavorite,
+  isExerciseFavorite,
+} from "../src/utils/exerciseFavorites";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ProgramsScreen() {
   const { theme } = useTheme();
+  const nav = useNavigation<any>();
   const toast = useToast();
   const h = useHaptics();
-  const { addWorkout } = useActivity();
+  const { user } = useAuth();
 
-  const [location, setLocation] = useState<"home" | "gym">("home");
-  const [days, setDays] = useState<string>("3");
-  const [level, setLevel] = useState<"beg" | "int" | "adv">("beg");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<Exercise[]>([]);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favNames, setFavNames] = useState<string[]>([]);
 
-  const [showSearch, setShowSearch] = useState(false);
-  const [showPlan, setShowPlan] = useState(false);
+  const uid = user?.uid || null;
 
-  const addRoutine = async (name: string, duration: number, calories: number) => {
-    await addWorkout({
-      name,
-      type: "strength",
-      duration,
-      caloriesBurned: calories,
-    });
-    h.impact("light");
-    toast.success(`${name} logged (${duration}m / ${calories} kcal)`);
-  };
+  useEffect(() => {
+    (async () => {
+      const favs = await getExerciseFavorites(uid);
+      setFavNames(favs.map((f) => f.name.toLowerCase()));
+    })();
+  }, [uid]);
 
-  return (
-    <>
-      <ScrollView
-        style={{ flex: 1, backgroundColor: theme.colors.appBg }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            Programs & Workouts
-          </Text>
-          <TouchableOpacity
-            onPress={() => setShowPlan(true)}
-            style={[styles.planBtn, { backgroundColor: theme.colors.primary }]}
-          >
-            <Text style={styles.planBtnText}>Your AI Plan</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-          Explore routines or browse exercises. Generate a weekly plan with AI.
-        </Text>
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      const q = query.trim();
+      if (!q) {
+        setResults([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await searchExercises(q, { limit: 120 });
+        if (active) setResults(data);
+      } finally {
+        setLoading(false);
+      }
+    };
+    const t = setTimeout(run, 250);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [query]);
 
-        {/* Filters */}
-        <Card style={{ marginTop: 12, marginBottom: 12 }}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Filters
-          </Text>
-          <View style={styles.filterRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Location
-              </Text>
-              <Segmented
-                items={[
-                  { label: "Home", value: "home" },
-                  { label: "Gym", value: "gym" },
-                ]}
-                value={location}
-                onChange={(v) => setLocation(v as "home" | "gym")}
-              />
-            </View>
-            <View style={{ width: 12 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: theme.colors.text }]}>
-                Days/week
-              </Text>
-              <Segmented
-                items={[
-                  { label: "2", value: "2" },
-                  { label: "3", value: "3" },
-                  { label: "4", value: "4" },
-                  { label: "5", value: "5" },
-                ]}
-                value={days}
-                onChange={setDays}
-              />
-            </View>
-          </View>
-          <View style={{ marginTop: 8 }}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Experience
+  const filtered =
+    favoritesOnly && favNames.length
+      ? results.filter((e) => favNames.includes(e.name.toLowerCase()))
+      : results;
+
+  const sections = useMemo(
+    () => groupByPrimaryMuscle(filtered),
+    [filtered]
+  );
+
+  const addToBuilder = useCallback(
+    async (e: Exercise) => {
+      await appendExerciseToRoutineDraft(uid, e);
+      h.impact("light");
+      toast.success(`${e.name} added to Builder`);
+      nav.navigate("RoutineBuilder", { addExercise: { id: e.id, name: e.name } });
+    },
+    [h, nav, toast, uid]
+  );
+
+  const toggleFav = useCallback(
+    async (e: Exercise) => {
+      const nowFav = await toggleExerciseFavorite(uid, { name: e.name, id: e.id });
+      const next = await getExerciseFavorites(uid);
+      setFavNames(next.map((f) => f.name.toLowerCase()));
+      toast.info(nowFav ? "Added to favorites" : "Removed from favorites");
+    },
+    [toast, uid]
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<Exercise>) => {
+      const muscles = [...(item.primaryMuscles || []), ...(item.secondaryMuscles || [])];
+      const steps = getHowToSteps(item).slice(0, 3);
+      const fav = favNames.includes(item.name.toLowerCase());
+      return (
+        <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={2}>
+              {item.name}
             </Text>
-            <Segmented
-              items={[
-                { label: "Beginner", value: "beg" },
-                { label: "Intermediate", value: "int" },
-                { label: "Advanced", value: "adv" },
-              ]}
-              value={level}
-              onChange={(v) => setLevel(v as any)}
-            />
-          </View>
-        </Card>
-
-        {/* Quick routines */}
-        <Card style={{ marginBottom: 12 }}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            Quick Routines
-          </Text>
-
-          <RoutineRow
-            name="Full Body A"
-            details="Goblet Squat, Push-Ups, Bent-Over Row, Plank"
-            duration="45 min"
-            cals="300 kcal"
-            onAdd={() => addRoutine("Full Body A", 45, 300)}
-            textColor={theme.colors.text}
-            muted={theme.colors.textMuted}
-          />
-          <RoutineRow
-            name="Full Body B"
-            details="Split Squat, Incline Push-Up, Lat Pulldown, Hollow Hold"
-            duration="45 min"
-            cals="300 kcal"
-            onAdd={() => addRoutine("Full Body B", 45, 300)}
-            textColor={theme.colors.text}
-            muted={theme.colors.textMuted}
-          />
-          <RoutineRow
-            name="Upper / Lower Split"
-            details="Upper: Bench, Row, Press • Lower: Squat, RDL, Lunges"
-            duration="60 min"
-            cals="350 kcal"
-            onAdd={() => addRoutine("Upper/Lower Split", 60, 350)}
-            textColor={theme.colors.text}
-            muted={theme.colors.textMuted}
-          />
-          <RoutineRow
-            name="Push / Pull / Legs"
-            details="Push: Bench, OHP • Pull: Row, Pulldown • Legs: Squat, RDL"
-            duration="60 min"
-            cals="380 kcal"
-            onAdd={() => addRoutine("Push/Pull/Legs", 60, 380)}
-            textColor={theme.colors.text}
-            muted={theme.colors.textMuted}
-          />
-        </Card>
-
-        {/* Explore exercises */}
-        <Card>
-          <View style={styles.rowBetween}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Explore Exercises
+            <Text style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={2}>
+              {muscles.length ? muscles.join(", ") : "Target: General / Bodyweight"}
             </Text>
-            <TouchableOpacity onPress={() => setShowSearch(true)}>
-              <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
-                Browse
-              </Text>
+            {steps.length > 0 && (
+              <View style={{ marginTop: 4 }}>
+                {steps.map((s, i) => (
+                  <Text key={i} style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={2}>
+                    {i + 1}. {s}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
+          <View style={{ gap: 6, alignItems: "center" }}>
+            <TouchableOpacity onPress={() => toggleFav(item)} accessibilityLabel="Toggle favorite">
+              <Ionicons name={fav ? "star" : "star-outline"} size={20} color={fav ? "#F4C20D" : theme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: theme.colors.primary }]}
+              onPress={() => addToBuilder(item)}
+            >
+              <Text style={styles.btnText}>Add</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ color: theme.colors.textMuted }}>
-            Search by name (bench, squat, plank) or equipment.
-          </Text>
-        </Card>
-
-        {/* Tips */}
-        <Text style={[styles.tip, { color: theme.colors.textMuted }]}>
-          Tip: For AI workouts tailored to {location}, {days}×/week,{" "}
-          {level === "beg" ? "beginner" : level === "int" ? "intermediate" : "advanced"} —
-          use “Your AI Plan” above to generate a structured week.
-        </Text>
-      </ScrollView>
-
-      <WorkoutsSearchModal visible={showSearch} onClose={() => setShowSearch(false)} />
-      <PlanModal visible={showPlan} onClose={() => setShowPlan(false)} weekStartDate={new Date()} />
-    </>
+        </View>
+      );
+    },
+    [addToBuilder, favNames, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted, toggleFav]
   );
-}
 
-function RoutineRow({
-  name,
-  details,
-  duration,
-  cals,
-  onAdd,
-  textColor,
-  muted,
-}: {
-  name: string;
-  details: string;
-  duration: string;
-  cals: string;
-  onAdd: () => void;
-  textColor: string;
-  muted: string;
-}) {
   return (
-    <View style={styles.routineRow}>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.routineName, { color: textColor }]}>{name}</Text>
-        <Text style={{ color: muted, marginTop: 2 }}>{details}</Text>
-        <Text style={{ color: muted, marginTop: 2 }}>
-          {duration} • {cals}
-        </Text>
+    <View style={{ flex: 1, backgroundColor: theme.colors.appBg, padding: 16 }}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Browse Exercises</Text>
+      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
+        Grouped by target muscle. Star to favorite. Add to Builder.
+      </Text>
+
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text, flex: 1 },
+          ]}
+          placeholder="Search (e.g., bench, squat, plank)"
+          placeholderTextColor={theme.colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          autoFocus={Platform.OS !== "web"}
+        />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text style={{ color: theme.colors.text }}>Favorites</Text>
+          <Switch value={favoritesOnly} onValueChange={setFavoritesOnly} />
+        </View>
       </View>
-      <TouchableOpacity style={styles.addBtn} onPress={onAdd}>
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={styles.addBtnText}>Add</Text>
-      </TouchableOpacity>
+
+      {loading ? (
+        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>Searching…</Text>
+      ) : sections.length === 0 ? (
+        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>Try “bench press”, “squat”, “plank”…</Text>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          renderSectionHeader={({ section }) => (
+            <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>{section.title}</Text>
+          )}
+          stickySectionHeadersEnabled
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 16 }}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { fontSize: 22, fontFamily: fonts.bold },
-  subtitle: { fontFamily: fonts.regular, marginTop: 6 },
-  sectionTitle: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 8 },
-  filterRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  label: { fontFamily: fonts.semiBold, marginBottom: 6 },
-  planBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-  planBtnText: { color: "#fff", fontFamily: fonts.semiBold, fontSize: 12 },
-  routineRow: { flexDirection: "row", gap: 12, alignItems: "center", marginBottom: 12 },
-  routineName: { fontFamily: fonts.semiBold, fontSize: 14 },
-  addBtn: { backgroundColor: "#007AFF", borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6 },
-  addBtnText: { color: "#fff", fontFamily: fonts.semiBold },
-  rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  tip: { fontFamily: fonts.regular, fontSize: 12, marginTop: 10 },
+  input: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: fonts.regular,
+  },
+  sectionHeader: { fontFamily: fonts.semiBold, marginTop: 12, marginBottom: 6 },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  name: { fontSize: 16, fontFamily: fonts.semiBold },
+  btn: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", minWidth: 80 },
+  btnText: { color: "#fff", fontFamily: fonts.semiBold, fontSize: 12 },
 });

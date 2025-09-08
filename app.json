@@ -16,7 +16,8 @@
         "NSCameraUsageDescription": "We use the camera to scan food barcodes and analyze meal images.",
         "NSPhotoLibraryUsageDescription": "We use the photo library so you can pick meal images and set your profile picture.",
         "NSPhotoLibraryAddUsageDescription": "We may save images to your library for exports.",
-        "NSMotionUsageDescription": "We use motion data to sync your daily steps."
+        "NSMotionUsageDescription": "We use motion data to sync your daily steps.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -56,7 +57,8 @@
         {
           "photosPermission": "Allow VitalPath to access your photos to analyze meals and set your profile picture."
         }
-      ]
+      ],
+      "expo-barcode-scanner"
     ],
     "experiments": {
       "typedRoutes": true

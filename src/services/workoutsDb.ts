@@ -22,10 +22,10 @@ export type Exercise = {
   source?: "wger" | "local" | "custom";
 };
 
-export type Paged<T> = {
-  items: T[];
-  hasMore: boolean;
-};
+export type Paged<T> = { items: T[]; hasMore: boolean };
+
+const API = "https://wger.de/api/v2";
+const TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 const LOCAL_EXERCISES: Exercise[] = [
   {
@@ -33,8 +33,11 @@ const LOCAL_EXERCISES: Exercise[] = [
     name: "Barbell Bench Press",
     category: "Chest",
     equipment: ["Barbell", "Bench"],
-    primaryMuscles: ["Pectoralis Major", "Triceps"],
-    secondaryMuscles: ["Anterior Deltoid"],
+    primaryMuscles: ["Pectoralis Major"],
+    secondaryMuscles: ["Triceps", "Anterior Deltoid"],
+    description:
+      "Lie on a flat bench, grip slightly wider than shoulders, lower bar " +
+      "to mid-chest with control, then press up.",
     source: "local",
   },
   {
@@ -44,6 +47,9 @@ const LOCAL_EXERCISES: Exercise[] = [
     equipment: ["Barbell", "Rack"],
     primaryMuscles: ["Quadriceps", "Glutes"],
     secondaryMuscles: ["Hamstrings", "Core"],
+    description:
+      "With bar on upper back, brace core, sit hips back and down to " +
+      "parallel, then drive up through mid-foot.",
     source: "local",
   },
   {
@@ -51,8 +57,11 @@ const LOCAL_EXERCISES: Exercise[] = [
     name: "Conventional Deadlift",
     category: "Back",
     equipment: ["Barbell"],
-    primaryMuscles: ["Hamstrings", "Glutes", "Back"],
+    primaryMuscles: ["Hamstrings", "Glutes", "Erector Spinae"],
     secondaryMuscles: ["Forearms", "Core"],
+    description:
+      "Hinge at hips, grip the bar, brace, push floor away and stand tall. " +
+      "Keep bar close and spine neutral.",
     source: "local",
   },
   {
@@ -60,8 +69,11 @@ const LOCAL_EXERCISES: Exercise[] = [
     name: "Pull-Up",
     category: "Back",
     equipment: ["Pull-up Bar"],
-    primaryMuscles: ["Lats", "Biceps"],
-    secondaryMuscles: ["Traps", "Forearms"],
+    primaryMuscles: ["Latissimus Dorsi"],
+    secondaryMuscles: ["Biceps", "Traps", "Forearms"],
+    description:
+      "Hang from a bar, pull elbows down/back to bring chest toward bar, " +
+      "lower under control.",
     source: "local",
   },
   {
@@ -71,11 +83,12 @@ const LOCAL_EXERCISES: Exercise[] = [
     equipment: ["Bodyweight"],
     primaryMuscles: ["Core"],
     secondaryMuscles: ["Glutes"],
+    description:
+      "Elbows under shoulders, legs straight, squeeze glutes and brace core, " +
+      "hold straight line.",
     source: "local",
   },
 ];
-
-const TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 async function getCache<T>(k: string, ttl = TTL_MS): Promise<T | null> {
   try {
@@ -88,111 +101,205 @@ async function getCache<T>(k: string, ttl = TTL_MS): Promise<T | null> {
     return null;
   }
 }
-
 async function setCache<T>(k: string, v: T) {
   try {
     await AsyncStorage.setItem(k, JSON.stringify({ t: Date.now(), v }));
   } catch {}
 }
-
-function stripHtml(html?: string): string | undefined {
-  if (!html) return undefined;
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+function decodeEntities(s: string) {
+  return String(s || "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"');
 }
-
+export function stripHtml(html?: string): string {
+  if (!html) return "";
+  return decodeEntities(html)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 function dedupe<T extends { id: string }>(arr: T[]): T[] {
   const m = new Map<string, T>();
   for (const x of arr) m.set(x.id, x);
   return Array.from(m.values());
 }
+async function fetchJson<T>(url: string): Promise<T> {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  return (await r.json()) as T;
+}
 
-function mapWgerExercise(e: any): Exercise | null {
-  if (!e?.name) return null;
+function mapExInfo(e: any): Exercise | null {
+  const id = e?.id != null ? String(e.id) : undefined;
+  const name = String(e?.name || "").trim();
+  if (!id || name.length < 2) return null;
+
+  const equipment = Array.isArray(e?.equipment)
+    ? e.equipment.map((x: any) => x?.name).filter(Boolean)
+    : [];
+  const primaryMuscles = Array.isArray(e?.muscles)
+    ? e.muscles.map((x: any) => x?.name).filter(Boolean)
+    : [];
+  const secondaryMuscles = Array.isArray(e?.muscles_secondary)
+    ? e.muscles_secondary.map((x: any) => x?.name).filter(Boolean)
+    : [];
+  const category =
+    e?.category?.name ||
+    (typeof e?.category === "string" ? e.category : "General");
+
   return {
-    id: String(e.id),
-    name: e.name,
-    category: e.category?.name,
-    equipment: (e.equipment || []).map((x: any) => x.name),
-    primaryMuscles: (e.muscles || []).map((x: any) => x.name),
-    secondaryMuscles: (e.muscles_secondary || []).map((x: any) => x.name),
-    description: stripHtml(e.description),
+    id,
+    name,
+    category,
+    equipment: equipment.length ? equipment : ["Bodyweight"],
+    primaryMuscles,
+    secondaryMuscles,
+    description: stripHtml(e?.description || ""),
     source: "wger",
   };
 }
 
-async function searchWgerPaged(
-  query: string,
-  page = 1,
-  pageSize = 100
-): Promise<Paged<Exercise>> {
-  const offset = (page - 1) * pageSize;
-  const key = `wger:search:${query || "_all"}:${page}:${pageSize}`;
-  const cached = await getCache<Paged<Exercise>>(key);
-  if (cached) return cached;
+export async function searchExercises(
+  queryText: string,
+  opts: { limit?: number } = {}
+): Promise<Exercise[]> {
+  const q = queryText.trim();
+  if (!q) return [];
 
-  const urlBase = "https://wger.de/api/v2/exerciseinfo/?language=2";
-  const url =
-    urlBase +
-    `&limit=${pageSize}&offset=${offset}` +
-    (query ? `&search=${encodeURIComponent(query)}` : "");
+  const locals = LOCAL_EXERCISES.filter((e) =>
+    e.name.toLowerCase().includes(q.toLowerCase())
+  );
 
   try {
-    const r = await fetch(url);
-    const j = await r.json();
-    const items: Exercise[] = (j?.results || [])
-      .map(mapWgerExercise)
-      .filter(Boolean) as Exercise[];
-    const uniq = dedupe(items);
-    const count = Number(j?.count ?? 0);
-    const hasMore = offset + pageSize < count;
-    const out = { items: uniq, hasMore };
-    await setCache(key, out);
-    return out;
+    const limit = Math.max(1, Math.min(120, opts.limit || 80));
+    const url =
+      `${API}/exerciseinfo/?language=2&limit=${limit}&search=` +
+      encodeURIComponent(q);
+    const data = await fetchJson<{ results: any[] }>(url);
+    const wger = (data.results || []).map(mapExInfo).filter(Boolean) as
+      | Exercise[]
+      | [];
+    const final = dedupe([...locals, ...wger]);
+    return final.filter((e) => e.name && e.name.trim().length >= 2);
   } catch {
-    return { items: [], hasMore: false };
+    return locals;
   }
+}
+
+export async function getExerciseById(id: string): Promise<Exercise | null> {
+  const local = LOCAL_EXERCISES.find((e) => e.id === id);
+  if (local) return local;
+  try {
+    const url = `${API}/exerciseinfo/${encodeURIComponent(id)}/?language=2`;
+    const e = await fetchJson<any>(url);
+    return mapExInfo(e);
+  } catch {
+    return null;
+  }
+}
+
+export function getHowToSteps(ex: Exercise): string[] {
+  const text = String(ex.description || "").trim();
+  if (!text) return [];
+  const byBreaks = text.split(/(?:\r?\n|\u2028)+/g).map((s) => s.trim());
+  const chunks =
+    byBreaks.filter((s) => s.length >= 3).length > 1
+      ? byBreaks
+      : text.split(/(?:\. |\.\n|; |- )/g).map((s) => s.trim());
+  return chunks.filter((s) => s.length >= 3);
+}
+
+function toHevyBucket(m?: string, category?: string): string {
+  const x = (m || "").toLowerCase();
+  if (x.includes("pector")) return "Chest";
+  if (
+    x.includes("lat") ||
+    x.includes("rhom") ||
+    x.includes("trape") ||
+    x.includes("spinae")
+  )
+    return "Back";
+  if (x.includes("deltoid")) return "Shoulders";
+  if (x.includes("biceps")) return "Biceps";
+  if (x.includes("triceps")) return "Triceps";
+  if (x.includes("forearm") || x.includes("brachiorad")) return "Forearms";
+  if (x.includes("quad") || x.includes("vastus") || x.includes("rectus fem"))
+    return "Quads";
+  if (x.includes("hamstring") || x.includes("biceps fem") || x.includes("semi"))
+    return "Hamstrings";
+  if (x.includes("glute")) return "Glutes";
+  if (x.includes("gastro") || x.includes("soleus")) return "Calves";
+  if (x.includes("abdom") || x.includes("oblique") || x.includes("core"))
+    return "Core";
+  const c = (category || "").toLowerCase();
+  if (c.includes("chest")) return "Chest";
+  if (c.includes("back")) return "Back";
+  if (c.includes("shoulder")) return "Shoulders";
+  if (c.includes("leg")) return "Legs";
+  return "Other";
+}
+export function groupByPrimaryMuscle(items: Exercise[]): {
+  title: string;
+  data: Exercise[];
+}[] {
+  const groups = new Map<string, Exercise[]>();
+  for (const ex of items) {
+    const first = (ex.primaryMuscles || [])[0];
+    const key = toHevyBucket(first, ex.category);
+    const arr = groups.get(key) || [];
+    arr.push(ex);
+    groups.set(key, arr);
+  }
+  const out = Array.from(groups.entries()).map(([title, data]) => ({
+    title,
+    data,
+  }));
+  out.sort((a, b) => a.title.localeCompare(b.title));
+  return out;
 }
 
 export async function addCustomExercise(
   uid: string,
   ex: Omit<Exercise, "id" | "source">
 ): Promise<Exercise> {
-  const col = collection(db, "users", uid, "customExercises");
-  const ref = await addDoc(col, { ...ex, source: "custom" });
+  const ref = await addDoc(collection(db, "users", uid, "customExercises"), {
+    ...ex,
+    source: "custom",
+  });
   return { ...ex, id: ref.id, source: "custom" };
 }
-
 export async function updateCustomExercise(
   uid: string,
   id: string,
   data: Partial<Omit<Exercise, "id" | "source">>
 ): Promise<void> {
-  const ref = doc(db, "users", uid, "customExercises", id);
-  await updateDoc(ref, { ...data });
+  await updateDoc(doc(db, "users", uid, "customExercises", id), { ...data });
 }
-
-export async function deleteCustomExercise(
-  uid: string,
-  id: string
-): Promise<void> {
+export async function deleteCustomExercise(uid: string, id: string) {
   await deleteDoc(doc(db, "users", uid, "customExercises", id));
 }
-
 export async function getCustomExercises(uid: string): Promise<Exercise[]> {
   try {
-    const col = collection(db, "users", uid, "customExercises");
-    const snap = await getDocs(col);
+    const snap = await getDocs(collection(db, "users", uid, "customExercises"));
     const out: Exercise[] = [];
     snap.forEach((d) => {
       const x = d.data() as DocumentData;
       out.push({
         id: d.id,
         name: String(x.name || "Custom Exercise"),
-        category: x.category,
-        equipment: x.equipment || [],
-        primaryMuscles: x.primaryMuscles || [],
-        secondaryMuscles: x.secondaryMuscles || [],
-        description: x.description,
+        category: x.category || "Custom",
+        equipment: Array.isArray(x.equipment) ? x.equipment : [],
+        primaryMuscles: Array.isArray(x.primaryMuscles)
+          ? x.primaryMuscles
+          : [],
+        secondaryMuscles: Array.isArray(x.secondaryMuscles)
+          ? x.secondaryMuscles
+          : [],
+        description: x.description ? stripHtml(x.description) : undefined,
         source: "custom",
       });
     });
@@ -202,59 +309,35 @@ export async function getCustomExercises(uid: string): Promise<Exercise[]> {
   }
 }
 
-export async function searchExercisesPaged(
-  queryText: string,
-  opts: { uid?: string; page?: number; pageSize?: number } = {}
-): Promise<Paged<Exercise>> {
-  const q = queryText.trim().toLowerCase();
-  const page = opts.page ?? 1;
-  const pageSize = opts.pageSize ?? 100;
-
-  const local = q
-    ? LOCAL_EXERCISES.filter((e) => e.name.toLowerCase().includes(q))
-    : LOCAL_EXERCISES;
-
-  const customAll = opts.uid ? await getCustomExercises(opts.uid) : [];
-  const customMatches = q
-    ? customAll.filter((e) => e.name.toLowerCase().includes(q))
-    : customAll;
-
-  const wger = await searchWgerPaged(q, page, pageSize);
-
-  const merged = dedupe([...customMatches, ...local, ...wger.items]);
-  return { items: merged, hasMore: wger.hasMore };
+// Append to Routine draft (guaranteed pickup by Builder)
+type Day = "Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat";
+const DAYS: Day[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function todayDay(): Day {
+  return DAYS[new Date().getDay()] || "Mon";
 }
-
-// Back-compat
-export async function searchExercises(
-  queryText: string,
-  opts: { uid?: string; limit?: number } = {}
+export async function appendExerciseToRoutineDraft(
+  uid: string | null,
+  ex: Exercise,
+  opts?: { day?: Day }
 ) {
-  const res = await searchExercisesPaged(queryText, {
-    uid: opts.uid,
-    page: 1,
-    pageSize: opts.limit ?? 100,
-  });
-  return res.items;
-}
-
-export async function getExerciseById(id: string): Promise<Exercise | null> {
-  const local = LOCAL_EXERCISES.find((e) => e.id === id);
-  if (local) return local;
-
-  const key = `wger:byid:${id}`;
-  const cached = await getCache<Exercise>(key);
-  if (cached) return cached;
-
+  const key = uid ? `routine:draft:${uid}` : "routine:draft:anon";
+  let draft: { name: string; items: any[] } = {
+    name: "My Workout",
+    items: [],
+  };
   try {
-    const r = await fetch(
-      `https://wger.de/api/v2/exerciseinfo/${encodeURIComponent(id)}/?language=2`
-    );
-    const j = await r.json();
-    const mapped = mapWgerExercise(j);
-    if (mapped) await setCache(key, mapped);
-    return mapped || null;
-  } catch {
-    return null;
-  }
+    const raw = await AsyncStorage.getItem(key);
+    if (raw) draft = JSON.parse(raw);
+  } catch {}
+  const day = opts?.day || todayDay();
+  draft.items = draft.items || [];
+  draft.items.push({
+    externalId: ex.source === "wger" ? String(ex.id) : undefined,
+    name: ex.name,
+    day,
+    sets: [{ reps: "8-12", restSec: 90, type: "normal" }],
+  });
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(draft));
+  } catch {}
 }

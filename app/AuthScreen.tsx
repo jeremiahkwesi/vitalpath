@@ -3,135 +3,117 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Alert,
-  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
-  ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../src/context/AuthContext";
-import { fonts } from "../src/constants/fonts";
 import { useTheme } from "../src/ui/ThemeProvider";
-import Segmented from "../src/ui/components/Segmented";
+import { fonts } from "../src/constants/fonts";
+import { useAuth } from "../src/context/AuthContext";
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function mapAuthError(e: any): string {
+  const code = e?.code || e?.message || "";
+  if (code.includes("auth/invalid-email")) return "Invalid email address.";
+  if (code.includes("auth/user-not-found")) return "No account found with this email.";
+  if (code.includes("auth/wrong-password")) return "Incorrect password.";
+  if (code.includes("auth/too-many-requests")) return "Too many attempts. Try again later.";
+  if (code.includes("auth/email-already-in-use")) return "Email already in use.";
+  if (code.includes("auth/weak-password")) return "Password is too weak.";
+  return "Authentication failed. Please try again.";
+}
 
 export default function AuthScreen() {
   const { theme } = useTheme();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const { signIn, signUp, resetPassword } = useAuth();
+
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [sending, setSending] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
-  const [errorText, setErrorText] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [pwd2, setPwd2] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const { signIn, signUp, resetPassword, sendVerificationEmail, user } =
-    useAuth();
-
-  const handleAuth = async () => {
-    setErrorText("");
-    if (!email || !password) {
-      setErrorText("Please enter email and password.");
+  const onSubmit = async () => {
+    const e = email.trim();
+    if (!isValidEmail(e)) {
+      Alert.alert("Email", "Please enter a valid email address.");
       return;
     }
-    setSending(true);
-    try {
-      if (mode === "login") {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-        Alert.alert(
-          "Welcome!",
-          "Account created. Please complete your profile to personalize your plan."
-        );
+    if (mode === "signup") {
+      if (pwd.length < 6) {
+        Alert.alert("Password", "Use at least 6 characters.");
+        return;
       }
-    } catch (error: any) {
-      const msg = mapAuthError(error?.code) || error?.message || "Try again.";
-      setErrorText(msg);
+      if (pwd !== pwd2) {
+        Alert.alert("Password", "Passwords do not match.");
+        return;
+      }
+    } else {
+      if (!pwd) {
+        Alert.alert("Password", "Please enter your password.");
+        return;
+      }
+    }
+
+    setBusy(true);
+    try {
+      if (mode === "signin") {
+        await signIn(e, pwd);
+      } else {
+        await signUp(e, pwd);
+        Alert.alert("Welcome", "Account created. You are signed in.");
+      }
+    } catch (err: any) {
+      Alert.alert("Authentication", mapAuthError(err));
     } finally {
-      setSending(false);
+      setBusy(false);
     }
   };
 
-  const handleReset = async () => {
-    setErrorText("");
-    if (!email) {
-      setErrorText("Enter your email first.");
+  const onForgot = async () => {
+    const e = email.trim();
+    if (!isValidEmail(e)) {
+      Alert.alert("Email", "Enter your email to reset your password.");
       return;
     }
     try {
-      await resetPassword(email);
-      Alert.alert(
-        "Check your inbox",
-        "Password reset link has been sent to your email."
-      );
-    } catch (e: any) {
-      const msg = mapAuthError(e?.code) || e?.message || "Try again.";
-      setErrorText(msg);
-    }
-  };
-
-  const handleSendVerify = async () => {
-    setErrorText("");
-    try {
-      await sendVerificationEmail();
-      Alert.alert(
-        "Verification Sent",
-        "Please check your email to verify your account."
-      );
-    } catch (e: any) {
-      const msg = mapAuthError(e?.code) || e?.message || "Try again.";
-      setErrorText(msg);
+      await resetPassword(e);
+      Alert.alert("Password reset", "We sent a reset link to your email.");
+    } catch (err: any) {
+      Alert.alert("Reset", mapAuthError(err));
     }
   };
 
   return (
-    <SafeAreaView
+    <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} bounces={false}>
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.logoWrap,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-            ]}
-          >
-            <Ionicons name="fitness" size={44} color={theme.colors.primary} />
-          </View>
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            VitalPath
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              { color: theme.colors.textMuted, textAlign: "center" },
-            ]}
-          >
-            Your Personal Health Journey
-          </Text>
-        </View>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingTop: 32, paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          VitalPath
+        </Text>
+        <Text style={{ color: theme.colors.textMuted, marginBottom: 12 }}>
+          {mode === "signin" ? "Sign in to continue" : "Create your account"}
+        </Text>
 
-        <View style={{ marginTop: 12 }}>
-          <Segmented
-            items={[
-              { label: "Login", value: "login" },
-              { label: "Sign Up", value: "signup" },
-            ]}
-            value={mode}
-            onChange={(v) => {
-              setMode(v as "login" | "signup");
-              setErrorText("");
-            }}
-          />
-        </View>
-
-        <View style={{ width: "100%", marginTop: 16 }}>
-          {!!errorText && (
-            <Text style={[styles.errorText, { color: "#D00" }]}>{errorText}</Text>
-          )}
-
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          ]}
+        >
+          <Text style={[styles.label, { color: theme.colors.text }]}>Email</Text>
           <TextInput
             style={[
               styles.input,
@@ -141,167 +123,108 @@ export default function AuthScreen() {
                 color: theme.colors.text,
               },
             ]}
-            placeholder="Email"
-            placeholderTextColor={theme.colors.textMuted}
+            autoCapitalize="none"
+            keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
+            placeholder="you@example.com"
+            placeholderTextColor={theme.colors.textMuted}
           />
 
-          <View style={styles.pwdRow}>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  flex: 1,
-                  marginBottom: 0,
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
-              placeholder="Password"
-              placeholderTextColor={theme.colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPwd}
-            />
-            <TouchableOpacity
-              style={[
-                styles.eyeBtn,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-              onPress={() => setShowPwd((s) => !s)}
-              accessibilityLabel={showPwd ? "Hide password" : "Show password"}
-            >
-              <Ionicons
-                name={showPwd ? "eye" : "eye-off"}
-                size={20}
-                color={theme.colors.textMuted}
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Password
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            secureTextEntry
+            value={pwd}
+            onChangeText={setPwd}
+            placeholder="••••••••"
+            placeholderTextColor={theme.colors.textMuted}
+          />
+
+          {mode === "signup" && (
+            <>
+              <Text style={[styles.label, { color: theme.colors.text }]}>
+                Confirm password
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  },
+                ]}
+                secureTextEntry
+                value={pwd2}
+                onChangeText={setPwd2}
+                placeholder="••••••••"
+                placeholderTextColor={theme.colors.textMuted}
               />
-            </TouchableOpacity>
-          </View>
+            </>
+          )}
 
           <TouchableOpacity
+            onPress={onSubmit}
+            disabled={busy}
             style={[
-              styles.button,
-              { backgroundColor: theme.colors.primary },
-              sending && styles.buttonDisabled,
+              styles.btn,
+              { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, marginTop: 10 },
             ]}
-            onPress={handleAuth}
-            disabled={sending}
           >
-            {sending ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {mode === "login" ? "Login" : "Sign Up"}
-              </Text>
-            )}
+            <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+              {busy
+                ? "Please wait…"
+                : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
+            </Text>
           </TouchableOpacity>
 
-          <View style={styles.linksRow}>
-            <TouchableOpacity onPress={handleReset}>
-              <Text style={[styles.linkText, { color: theme.colors.primary }]}>
+          {mode === "signin" && (
+            <TouchableOpacity
+              onPress={onForgot}
+              style={{ marginTop: 10, alignSelf: "flex-start" }}
+            >
+              <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
                 Forgot password?
               </Text>
             </TouchableOpacity>
-            {user && !user.emailVerified ? (
-              <TouchableOpacity onPress={handleSendVerify}>
-                <Text style={[styles.linkText, { color: theme.colors.primary }]}>
-                  Send verification email
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
+          )}
         </View>
 
-        <View style={styles.footer}>
-          <Text
-            style={[
-              styles.footerText,
-              { color: theme.colors.textMuted, textAlign: "center" },
-            ]}
-          >
-            By continuing you agree to our Terms and Privacy Policy.
+        <View style={{ flexDirection: "row", gap: 6, marginTop: 12 }}>
+          <Text style={{ color: theme.colors.textMuted }}>
+            {mode === "signin"
+              ? "Don't have an account?"
+              : "Already have an account?"}
           </Text>
+          <TouchableOpacity
+            onPress={() => setMode(mode === "signin" ? "signup" : "signin")}
+          >
+            <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
+              {mode === "signin" ? "Sign up" : "Sign in"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
-function mapAuthError(code?: string): string {
-  switch (code) {
-    case "auth/invalid-email":
-      return "Invalid email address.";
-    case "auth/user-not-found":
-    case "auth/wrong-password":
-      return "Incorrect email or password.";
-    case "auth/too-many-requests":
-      return "Too many attempts. Try again later.";
-    case "auth/email-already-in-use":
-      return "Email already in use.";
-    case "auth/weak-password":
-      return "Password should be at least 6 characters.";
-    case "auth/network-request-failed":
-      return "Network error. Check your connection.";
-    case "auth/operation-not-allowed":
-      return "Email/password sign-in is not enabled in Firebase.";
-    default:
-      return "";
-  }
-}
-
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, justifyContent: "center", padding: 20 },
-  header: { alignItems: "center", marginBottom: 20 },
-  logoWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  title: { fontSize: 28, fontFamily: fonts.bold },
-  subtitle: { fontSize: 14, fontFamily: fonts.regular, marginTop: 4 },
-  errorText: { fontFamily: fonts.semiBold, marginBottom: 8 },
-  input: {
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 12,
-    fontSize: 16,
-    fontFamily: fonts.regular,
-    borderWidth: 1,
-  },
-  pwdRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  eyeBtn: {
-    marginLeft: 8,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-  },
-  button: {
-    borderRadius: 10,
-    padding: 15,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontFamily: fonts.semiBold },
-  linksRow: {
-    marginTop: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  linkText: { fontFamily: fonts.semiBold, fontSize: 13 },
-  footer: { marginTop: 24, alignItems: "center" },
-  footerText: { fontFamily: fonts.regular, fontSize: 12 },
+  title: { fontFamily: fonts.bold, fontSize: 28, marginBottom: 4 },
+  card: { borderRadius: 12, borderWidth: 1, padding: 12 },
+  label: { fontFamily: fonts.semiBold, marginTop: 6, marginBottom: 6 },
+  input: { borderRadius: 10, borderWidth: 1, padding: 12, fontFamily: fonts.regular },
+  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
 });

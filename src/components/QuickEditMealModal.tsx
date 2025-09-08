@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { colors as baseColors } from "../constants/colors";
 import { fonts } from "../constants/fonts";
 import { useTheme } from "../ui/ThemeProvider";
 import { useHaptics } from "../ui/hooks/useHaptics";
+import Select from "../ui/components/Select";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -140,273 +142,258 @@ export default function QuickEditMealModal({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Quick Edit
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
-                Close
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={{ maxHeight: "82%" }}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 8 }}
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+            ]}
           >
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
-              value={form.name}
-              onChangeText={(t) => update("name", t)}
-              placeholder="Meal name"
-              placeholderTextColor={theme.colors.textMuted}
-            />
-
-            {!!form.serving && (
-              <Text style={[styles.servingText, { color: theme.colors.textMuted }]}>
-                Serving: {form.serving}
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                Quick Edit
               </Text>
-            )}
-
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: theme.colors.surface2,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text,
-                    },
-                  ]}
-                  value={form.grams != null ? String(form.grams) : ""}
-                  onChangeText={(t) => update("grams", t)}
-                  placeholder="Portion (g)"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="numeric"
-                />
-              </View>
-              <TouchableOpacity
-                onPress={() => bumpGrams(-10)}
-                style={[
-                  styles.bumpBtn,
-                  { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
-                ]}
-              >
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                  -10g
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => bumpGrams(+10)}
-                style={[
-                  styles.bumpBtn,
-                  { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
-                ]}
-              >
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                  +10g
+              <TouchableOpacity onPress={onClose}>
+                <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
+                  Close
                 </Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, marginBottom: 8 }}
+              style={{ maxHeight: "82%" }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 8 }}
+              keyboardShouldPersistTaps="handled"
             >
-              {gramsChips.map((g) => (
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  },
+                ]}
+                value={form.name}
+                onChangeText={(t) => update("name", t)}
+                placeholder="Meal name"
+                placeholderTextColor={theme.colors.textMuted}
+              />
+
+              {!!form.serving && (
+                <Text style={[styles.servingText, { color: theme.colors.textMuted }]}>
+                  Serving: {form.serving}
+                </Text>
+              )}
+
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
+                    value={form.grams != null ? String(form.grams) : ""}
+                    onChangeText={(t) => update("grams", t)}
+                    placeholder="Portion (g)"
+                    placeholderTextColor={theme.colors.textMuted}
+                    keyboardType="numeric"
+                  />
+                </View>
                 <TouchableOpacity
-                  key={g}
-                  onPress={() => update("grams", g)}
+                  onPress={() => bumpGrams(-10)}
                   style={[
-                    styles.chip,
-                    {
-                      backgroundColor: theme.colors.surface2,
-                      borderColor: theme.colors.border,
-                    },
+                    styles.bumpBtn,
+                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
                   ]}
                 >
-                  <Text
-                    style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
-                  >
-                    {g}g
+                  <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                    -10g
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.row}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    flex: 1,
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                  },
-                ]}
-                value={String(form.calories)}
-                onChangeText={(t) => update("calories", t)}
-                placeholder="Calories"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.row}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    flex: 1,
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                  },
-                ]}
-                value={String(form.protein)}
-                onChangeText={(t) => update("protein", t)}
-                placeholder="Protein (g)"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    flex: 1,
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                  },
-                ]}
-                value={String(form.carbs)}
-                onChangeText={(t) => update("carbs", t)}
-                placeholder="Carbs (g)"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    flex: 1,
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                  },
-                ]}
-                value={String(form.fat)}
-                onChangeText={(t) => update("fat", t)}
-                placeholder="Fat (g)"
-                placeholderTextColor={theme.colors.textMuted}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View
-              style={[
-                styles.pickerWrap,
-                { borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
-              ]}
-            >
-              <Picker
-                selectedValue={form.type}
-                onValueChange={(v) => update("type", v as MealType)}
-                style={[styles.picker, { color: theme.colors.text }]}
-              >
-                <Picker.Item label="Breakfast" value="breakfast" />
-                <Picker.Item label="Lunch" value="lunch" />
-                <Picker.Item label="Dinner" value="dinner" />
-                <Picker.Item label="Snack" value="snack" />
-              </Picker>
-            </View>
-
-            <View style={styles.componentsHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Components (optional)
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.addBtn,
-                  { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
-                ]}
-                onPress={addComponent}
-              >
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                  + Add
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {(form.components || []).map((c, idx) => (
-              <View style={styles.compRow} key={`comp-${idx}`}>
-                <TextInput
+                <TouchableOpacity
+                  onPress={() => bumpGrams(+10)}
                   style={[
-                    styles.input,
-                    { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                    styles.bumpBtn,
+                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
                   ]}
-                  value={c.name}
-                  onChangeText={(t) => updateComponent(idx, "name", t)}
-                  placeholder="Item name (e.g., banku)"
-                  placeholderTextColor={theme.colors.textMuted}
-                />
+                >
+                  <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                    +10g
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
+                {gramsChips.map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    onPress={() => update("grams", g)}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+                    ]}
+                  >
+                    <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                      {g}g
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.row}>
                 <TextInput
                   style={[
                     styles.input,
                     {
-                      width: 100,
-                      textAlign: "right",
+                      flex: 1,
                       backgroundColor: theme.colors.surface2,
                       borderColor: theme.colors.border,
                       color: theme.colors.text,
                     },
                   ]}
-                  value={String(c.grams)}
-                  onChangeText={(t) => updateComponent(idx, "grams", t)}
-                  placeholder="g"
+                  value={String(form.calories)}
+                  onChangeText={(t) => update("calories", t)}
+                  placeholder="Calories"
                   placeholderTextColor={theme.colors.textMuted}
                   keyboardType="numeric"
                 />
-                <TouchableOpacity
+              </View>
+
+              <View style={styles.row}>
+                <TextInput
                   style={[
-                    styles.removeBtn,
-                    { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+                    styles.input,
+                    {
+                      flex: 1,
+                      backgroundColor: theme.colors.surface2,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
                   ]}
-                  onPress={() => removeComponent(idx)}
+                  value={String(form.protein)}
+                  onChangeText={(t) => update("protein", t)}
+                  placeholder="Protein (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      backgroundColor: theme.colors.surface2,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
+                  ]}
+                  value={String(form.carbs)}
+                  onChangeText={(t) => update("carbs", t)}
+                  placeholder="Carbs (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      flex: 1,
+                      backgroundColor: theme.colors.surface2,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
+                  ]}
+                  value={String(form.fat)}
+                  onChangeText={(t) => update("fat", t)}
+                  placeholder="Fat (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <Select
+                label="Meal type"
+                value={form.type}
+                items={[
+                  { label: "Breakfast", value: "breakfast" },
+                  { label: "Lunch", value: "lunch" },
+                  { label: "Dinner", value: "dinner" },
+                  { label: "Snack", value: "snack" },
+                ]}
+                onChange={(v) => update("type", v as MealType)}
+              />
+
+              <View style={styles.componentsHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                  Components (optional)
+                </Text>
+                <TouchableOpacity
+                  style={[styles.addBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                  onPress={addComponent}
                 >
                   <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                    Remove
+                    + Add
                   </Text>
                 </TouchableOpacity>
               </View>
-            ))}
-          </ScrollView>
 
-          <TouchableOpacity
-            style={[styles.saveBtn, { backgroundColor: theme.colors.primary }]}
-            onPress={save}
-          >
-            <Text style={styles.saveText}>Save Meal</Text>
-          </TouchableOpacity>
-        </View>
+              {(form.components || []).map((c, idx) => (
+                <View style={styles.compRow} key={`comp-${idx}`}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                    ]}
+                    value={c.name}
+                    onChangeText={(t) => updateComponent(idx, "name", t)}
+                    placeholder="Item name (e.g., banku)"
+                    placeholderTextColor={theme.colors.textMuted}
+                  />
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        width: 100,
+                        textAlign: "right",
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
+                    value={String(c.grams)}
+                    onChangeText={(t) => updateComponent(idx, "grams", t)}
+                    placeholder="g"
+                    placeholderTextColor={theme.colors.textMuted}
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    style={[styles.removeBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                    onPress={() => removeComponent(idx)}
+                  >
+                    <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: theme.colors.primary }]}
+              onPress={save}
+            >
+              <Text style={styles.saveText}>Save Meal</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -418,44 +405,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10, alignItems: "center" },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   servingText: { fontFamily: fonts.regular, marginBottom: 6, marginTop: -2 },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 8,
-    fontFamily: fonts.regular,
-    fontSize: 14,
-  },
+  input: { borderRadius: 10, borderWidth: 1, padding: 12, marginBottom: 8, fontFamily: fonts.regular, fontSize: 14 },
   row: { flexDirection: "row", gap: 8, alignItems: "center" },
-  bumpBtn: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  pickerWrap: { borderWidth: 1, borderRadius: 10, marginBottom: 10 },
-  picker: { height: 44 },
-  componentsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 6,
-    marginBottom: 6,
-  },
+  bumpBtn: { borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10 },
+  componentsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6, marginBottom: 6 },
   sectionTitle: { fontFamily: fonts.semiBold, fontSize: 14 },
-  addBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
+  addBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
   compRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  removeBtn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
+  removeBtn: { borderWidth: 1, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 8 },
   saveBtn: { borderRadius: 10, padding: 12, alignItems: "center", marginTop: 8 },
   saveText: { color: "#fff", fontFamily: fonts.semiBold },
 });

@@ -69,12 +69,11 @@ export async function analyzeMeal(
     };
   } catch (e: any) {
     console.error("analyzeMeal error:", e?.message || e);
-    return {
-      analysis: "AI analysis is temporarily unavailable. Try again later.",
-    };
+    return { analysis: "AI analysis is temporarily unavailable. Try again later." };
   }
 }
 
+// Image analysis types
 export type PortionItem = {
   name: string;
   grams: number;
@@ -84,17 +83,11 @@ export type PortionItem = {
   fat: number;
   micros?: Record<string, number>;
 };
-
 export interface MealImageAnalysis {
-  // Display name (e.g., "Banku with okro stew and fish")
   name: string;
-  // Human-readable portion text for UI ("420 g", "1 bowl (350 g)", etc.)
   serving: string;
-  // Optional numeric grams for the full portion (preferred)
   portionGrams?: number;
-  // Optional per-item breakdown for mixed meals
   items?: PortionItem[];
-  // Totals for the entire portion (not per 100 g)
   calories: number;
   macros: { protein: number; carbs: number; fat: number };
   micros: {
@@ -106,36 +99,21 @@ export interface MealImageAnalysis {
     iron?: number;
     [k: string]: number | undefined;
   };
-  confidence: number; // 0–1
+  confidence: number;
 }
 
 function toNum(v: any, fb = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : fb;
 }
-
 function parseGramsFromText(s?: string | null): number | null {
   if (!s) return null;
-  // Examples: "420 g", "1 bowl (350 g)", "195 g", "1 cup cooked (195 g)"
-  const match = String(s).match(/(\d+(\.\d+)?)\s*g/i);
-  if (!match) return null;
-  return Math.round(parseFloat(match[1]));
+  const m = String(s).match(/(\d+(\.\d+)?)\s*g/i);
+  return m ? Math.round(parseFloat(m[1])) : null;
 }
-
 function round(n: number, step = 1) {
   return Math.round(n / step) * step;
 }
-
-type RawV1 = {
-  item?: {
-    name?: string;
-    serving?: string;
-    calories?: number;
-    macros?: { protein?: number; carbs?: number; fat?: number };
-    micros?: Record<string, number>;
-    confidence?: number;
-  };
-};
 
 type RawV2 = {
   item?: {
@@ -153,6 +131,16 @@ type RawV2 = {
     confidence?: number;
   };
 };
+type RawV1 = {
+  item?: {
+    name?: string;
+    serving?: string;
+    calories?: number;
+    macros?: { protein?: number; carbs?: number; fat?: number };
+    micros?: Record<string, number>;
+    confidence?: number;
+  };
+};
 
 function normalizeImageAnalysis(respData: any): MealImageAnalysis {
   const v2 = (respData as RawV2)?.item;
@@ -161,8 +149,7 @@ function normalizeImageAnalysis(respData: any): MealImageAnalysis {
     const portionGrams =
       typeof v2.portionGrams === "number" ? v2.portionGrams : undefined;
     const serving =
-      v2.servingText ||
-      (portionGrams ? `${round(portionGrams)} g` : "1 serving");
+      v2.servingText || (portionGrams ? `${round(portionGrams)} g` : "1 serving");
     return {
       name: String(v2.name || "Meal"),
       serving,
@@ -179,7 +166,6 @@ function normalizeImageAnalysis(respData: any): MealImageAnalysis {
     };
   }
 
-  // Fallback to v1
   const v1 = (respData as RawV1)?.item || {};
   const portionGrams = parseGramsFromText(v1.serving);
   return {
@@ -197,10 +183,26 @@ function normalizeImageAnalysis(respData: any): MealImageAnalysis {
   };
 }
 
+// NEW: Hugging Face labeler
+export async function labelFoodImageBase64(
+  imageBase64: string,
+  mimeType: string
+): Promise<{ label: string; score: number }> {
+  try {
+    const call = httpsCallable(functions, "imageLabeler");
+    const resp: any = await call({ imageBase64, mimeType });
+    return { label: resp?.data?.label || "", score: Number(resp?.data?.score || 0) };
+  } catch (e: any) {
+    console.error("imageLabeler error:", e?.message || e);
+    return { label: "", score: 0 };
+  }
+}
+
 export async function analyzeMealImageBase64(
   imageBase64: string,
   mimeType: string,
-  context: HealthContext
+  context: HealthContext,
+  opts?: { labelHint?: string }
 ): Promise<MealImageAnalysis> {
   try {
     const call = httpsCallable(functions, "analyzeMealImage");
@@ -208,13 +210,133 @@ export async function analyzeMealImageBase64(
       imageBase64,
       mimeType,
       profile: context,
+      labelHint: opts?.labelHint || "",
     });
     if (!resp?.data?.item) throw new Error("No analysis result");
     return normalizeImageAnalysis(resp.data);
   } catch (e: any) {
     console.error("analyzeMealImage error:", e?.message || e);
-    throw new Error(
-      "AI image analysis failed. Please try again with a clearer photo."
-    );
+    throw new Error("AI image analysis failed. Please try again with a clearer photo.");
   }
+}
+
+// JSON parsing helper
+function tryParseJSON<T = any>(s: string): T | null {
+  try {
+    return JSON.parse(s);
+  } catch {
+    const m = s.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (m) {
+      try {
+        return JSON.parse(m[0]);
+      } catch {}
+    }
+    return null;
+  }
+}
+
+// Pantry → meals
+export type PantryLite = { name: string; grams?: number; count?: number };
+export type PantryIdea = {
+  title: string;
+  ingredients: string[];
+  description: string[];
+  nutrition?: { calories: number; protein: number; carbs: number; fat: number };
+};
+
+export async function getPantryMealIdeasAI(
+  pantry: PantryLite[],
+  targets: {
+    caloriesRemaining: number;
+    macrosRemaining: { protein: number; carbs: number; fat: number };
+    preferences?: string[];
+  },
+  profile?: HealthContext
+): Promise<PantryIdea[]> {
+  const msg = `
+You are a dietician. Suggest 3 meal ideas using the pantry items FIRST. 
+Respect dietary preferences: ${targets.preferences?.join(", ") || "none"}.
+Today remaining: ${targets.caloriesRemaining} kcal, P${targets.macrosRemaining.protein} C${targets.macrosRemaining.carbs} F${targets.macrosRemaining.fat}.
+
+Pantry:
+${pantry.map((p) => `- ${p.name}${p.grams ? ` (${p.grams} g)` : p.count ? ` (${p.count} pcs)` : ""}`).join("\n")}
+
+Return JSON array with:
+[{ "title": "", "ingredients": ["name ..."], "description": ["step..."], "nutrition": {"calories": 0, "protein":0,"carbs":0,"fat":0}}]
+Only return JSON.
+  `.trim();
+
+  const text = await getHealthAssistantResponse(msg, profile || {});
+  const json = tryParseJSON<PantryIdea[]>(text);
+  if (json && Array.isArray(json)) return json.slice(0, 5);
+  return [
+    {
+      title: "Meal ideas",
+      ingredients: [],
+      description: text.split("\n").filter(Boolean).slice(0, 8),
+    },
+  ];
+}
+
+// Weekly report
+export async function getWeeklyReportNarrativeAI(
+  summary: {
+    days: {
+      date: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      steps: number;
+      workouts: number;
+      meals: number;
+    }[];
+    totals: Record<string, number>;
+    averages: Record<string, number>;
+  },
+  profile?: HealthContext
+): Promise<string> {
+  const msg = `
+Act as a friendly dietician. Write a concise weekly report (5-10 sentences) analyzing:
+- Energy intake vs likely target
+- Macro balance
+- Steps and activity
+- Wins and one specific priority next week
+Base on this JSON:
+${JSON.stringify(summary)}
+Return plain text only.
+  `.trim();
+  return await getHealthAssistantResponse(msg, profile || {});
+}
+
+// Grocery optimizer
+export async function optimizeGroceryListAI(
+  need: { name: string; grams?: number }[],
+  pantry: PantryLite[],
+  opts?: {
+    currency?: string;
+    budget?: number;
+    dietaryPreferences?: string[];
+  }
+): Promise<string> {
+  const msg = `
+You are a budget-savvy dietician. Given a grocery NEED list, Pantry, and optional budget, 
+suggest substitutions to reduce cost while keeping nutrition reasonable. 
+Prefer pantry and staples (rice/beans/oats), avoid expensive items. 
+Return brief bullet points: substitutions and a prioritized shopping list within budget (if provided).
+
+NEED:
+${need.map((n) => `- ${n.name}${n.grams ? ` (${Math.round(n.grams)} g)` : ""}`).join("\n")}
+
+Pantry:
+${pantry.map((p) => `- ${p.name}${p.grams ? ` (${p.grams} g)` : p.count ? ` (${p.count} pcs)` : ""}`).join("\n")}
+
+Currency: ${opts?.currency || "USD"}
+Budget: ${opts?.budget != null ? opts?.budget : "n/a"}
+Preferences: ${opts?.dietaryPreferences?.join(", ") || "none"}
+
+Return plain text bullets, concise.
+  `.trim();
+
+  return await getHealthAssistantResponse(msg, {});
 }
