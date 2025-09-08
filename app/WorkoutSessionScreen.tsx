@@ -19,13 +19,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { getUnits } from "../src/utils/userSettings";
 
 type Day = "Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat";
-type SetType =
-  | "normal"
-  | "superset"
-  | "dropset"
-  | "pyramid"
-  | "amrap"
-  | "timed";
+type SetType = "normal" | "superset" | "dropset" | "pyramid" | "amrap" | "timed";
 type DraftSet = {
   reps?: string;
   restSec: number;
@@ -68,7 +62,6 @@ export default function WorkoutSessionScreen() {
   const [items, setItems] = useState<DraftItem[]>(initial?.items || []);
   const [sessionName] = useState<string>(initial?.name || "Workout");
   const [startedAt] = useState<number>(Date.now());
-
   const [unitsLabel, setUnitsLabel] = useState<"kg" | "lb">("kg");
 
   // per-exercise timers
@@ -141,9 +134,7 @@ export default function WorkoutSessionScreen() {
         if (cur <= 0) {
           clearInterval(timerRefs.current[key]);
           delete timerRefs.current[key];
-          Haptics.notificationAsync(
-            Haptics.NotificationFeedbackType.Success
-          );
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
         return next;
       });
@@ -159,13 +150,8 @@ export default function WorkoutSessionScreen() {
 
   const markSetDone = (exIdx: number, setIdx: number) => {
     setItems((prev) => {
-      const next = prev.map((p) => ({
-        ...p,
-        sets: p.sets.map((s) => ({ ...s })),
-      }));
-      const list = todays.length
-        ? next.filter((i) => i.day === todayDay)
-        : next;
+      const next = prev.map((p) => ({ ...p, sets: p.sets.map((s) => ({ ...s })) }));
+      const list = todays.length ? next.filter((i) => i.day === todayDay) : next;
       const src = list[exIdx];
       if (!src) return prev;
       const globalIndex = next.findIndex((i) => i === src);
@@ -177,41 +163,28 @@ export default function WorkoutSessionScreen() {
       return next;
     });
     const key = String(exIdx);
-    const rest =
-      (displayList?.[exIdx]?.sets?.[setIdx]?.restSec as number) || 60;
+    const rest = (displayList?.[exIdx]?.sets?.[setIdx]?.restSec as number) || 60;
     startExTimer(key, rest);
   };
 
   const updateSetWeight = (exIdx: number, setIdx: number, weight: number) => {
     setItems((prev) => {
-      const clone = prev.map((p) => ({
-        ...p,
-        sets: p.sets.map((s) => ({ ...s })),
-      }));
-      const list = todays.length
-        ? clone.filter((i) => i.day === todayDay)
-        : clone;
+      const clone = prev.map((p) => ({ ...p, sets: p.sets.map((s) => ({ ...s })) }));
+      const list = todays.length ? clone.filter((i) => i.day === todayDay) : clone;
       const src = list[exIdx];
       if (!src) return prev;
       const globalIndex = clone.findIndex((i) => i === src);
       if (globalIndex < 0) return prev;
       const v = Number(weight);
-      clone[globalIndex].sets[setIdx].weight = Number.isFinite(v)
-        ? v
-        : undefined;
+      clone[globalIndex].sets[setIdx].weight = Number.isFinite(v) ? v : undefined;
       return clone;
     });
   };
 
   const updateSetReps = (exIdx: number, setIdx: number, reps: string) => {
     setItems((prev) => {
-      const clone = prev.map((p) => ({
-        ...p,
-        sets: p.sets.map((s) => ({ ...s })),
-      }));
-      const list = todays.length
-        ? clone.filter((i) => i.day === todayDay)
-        : clone;
+      const clone = prev.map((p) => ({ ...p, sets: p.sets.map((s) => ({ ...s })) }));
+      const list = todays.length ? clone.filter((i) => i.day === todayDay) : clone;
       const src = list[exIdx];
       if (!src) return prev;
       const globalIndex = clone.findIndex((i) => i === src);
@@ -224,10 +197,7 @@ export default function WorkoutSessionScreen() {
   const finishSession = async () => {
     try {
       const ended = Date.now();
-      const durationMin = Math.max(
-        1,
-        Math.round((ended - startedAt) / 60000)
-      );
+      const durationMin = Math.max(1, Math.round((ended - startedAt) / 60000));
       const calories = Math.round(durationMin * 6);
 
       const itemsForSave = (todays.length ? todays : items).map((ex) => ({
@@ -252,9 +222,7 @@ export default function WorkoutSessionScreen() {
         items: itemsForSave,
       });
 
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success
-      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       nav.goBack();
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -268,8 +236,7 @@ export default function WorkoutSessionScreen() {
       const ex = res[0];
       const steps = ex ? getHowToSteps(ex) : [];
       const meta = ex
-        ? `${ex.category || "General"} • ` +
-          `${(ex.equipment || []).join(", ") || "Bodyweight"}`
+        ? `${ex.category || "General"} • ${(ex.equipment || []).join(", ") || "Bodyweight"}`
         : "How to not available.";
       setInfoFor({ name, steps, meta });
     } catch {
@@ -277,23 +244,25 @@ export default function WorkoutSessionScreen() {
     }
   };
 
+  const totalSetsDone = useMemo(() => {
+    let n = 0;
+    for (const ex of displayList) {
+      for (const s of ex.sets) if (s.done) n += 1;
+    }
+    return n;
+  }, [displayList]);
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        {sessionName}
-      </Text>
-      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Day: {todayDay}
-      </Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>{sessionName}</Text>
+      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>Day: {todayDay}</Text>
 
       {!displayList.length ? (
-        <Text style={{ color: theme.colors.textMuted }}>
-          No exercises in this session.
-        </Text>
+        <Text style={{ color: theme.colors.textMuted }}>No exercises in this session.</Text>
       ) : (
         displayList.map((ex, exIdx) => {
           const key = String(exIdx);
@@ -302,45 +271,21 @@ export default function WorkoutSessionScreen() {
           return (
             <View
               key={`${ex.name}-${exIdx}`}
-              style={[
-                styles.card,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
+              style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => openInfo(ex.name)}
-                  style={{ flexShrink: 1 }}
-                >
-                  <Text
-                    style={[styles.exercise, { color: theme.colors.text }]}
-                  >
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <TouchableOpacity onPress={() => openInfo(ex.name)} style={{ flexShrink: 1 }}>
+                  <Text style={[styles.exercise, { color: theme.colors.text }]}>
                     {ex.name} {ex.groupId ? `• Group ${ex.groupId}` : ""}
                   </Text>
                 </TouchableOpacity>
                 {rest > 0 ? (
                   <TouchableOpacity
                     onPress={() => stopExTimer(key)}
-                    style={[
-                      styles.restBadge,
-                      { backgroundColor: theme.colors.surface2 },
-                    ]}
+                    style={[styles.restBadge, { backgroundColor: theme.colors.surface2 }]}
+                    accessibilityLabel="Stop rest timer"
                   >
-                    <Text
-                      style={{
-                        color: theme.colors.text,
-                        fontFamily: fonts.semiBold,
-                      }}
-                    >
+                    <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
                       Rest {mmss(rest)}
                     </Text>
                   </TouchableOpacity>
@@ -348,15 +293,8 @@ export default function WorkoutSessionScreen() {
               </View>
 
               {!!hint && (
-                <Text
-                  style={{
-                    color: theme.colors.textMuted,
-                    fontSize: 12,
-                    marginBottom: 4,
-                  }}
-                >
-                  Last: {hint.weight != null ? `${hint.weight} ${unitsLabel}` : "—"}{" "}
-                  {hint.reps ? `× ${hint.reps}` : ""}
+                <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginBottom: 4 }}>
+                  Last: {hint.weight != null ? `${hint.weight} ${unitsLabel}` : "—"} {hint.reps ? `× ${hint.reps}` : ""}
                 </Text>
               )}
 
@@ -364,61 +302,29 @@ export default function WorkoutSessionScreen() {
                 const repsNum = parseRepsToInt(s.reps);
                 const est = epley1RM(s.weight, repsNum);
                 return (
-                  <View
-                    key={`set-${setIdx}`}
-                    style={[
-                      styles.setRow,
-                      { borderColor: theme.colors.border },
-                    ]}
-                  >
+                  <View key={`set-${setIdx}`} style={[styles.setRow, { borderColor: theme.colors.border }]}>
                     <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.small,
-                          { color: theme.colors.textMuted },
-                        ]}
-                      >
-                        Reps
-                      </Text>
+                      <Text style={[styles.small, { color: theme.colors.textMuted }]}>Reps</Text>
                       <TextInput
                         style={[
                           styles.input,
-                          {
-                            backgroundColor: theme.colors.surface2,
-                            borderColor: theme.colors.border,
-                            color: theme.colors.text,
-                          },
+                          { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
                         ]}
                         value={s.reps ?? ""}
-                        onChangeText={(t) =>
-                          updateSetReps(exIdx, setIdx, t)
-                        }
+                        onChangeText={(t) => updateSetReps(exIdx, setIdx, t)}
                         placeholder="e.g., 8-12 or 10"
                         placeholderTextColor={theme.colors.textMuted}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.small,
-                          { color: theme.colors.textMuted },
-                        ]}
-                      >
-                        Weight ({unitsLabel})
-                      </Text>
+                      <Text style={[styles.small, { color: theme.colors.textMuted }]}>Weight ({unitsLabel})</Text>
                       <TextInput
                         style={[
                           styles.input,
-                          {
-                            backgroundColor: theme.colors.surface2,
-                            borderColor: theme.colors.border,
-                            color: theme.colors.text,
-                          },
+                          { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
                         ]}
                         value={s.weight != null ? String(s.weight) : ""}
-                        onChangeText={(t) =>
-                          updateSetWeight(exIdx, setIdx, Number(t))
-                        }
+                        onChangeText={(t) => updateSetWeight(exIdx, setIdx, Number(t))}
                         keyboardType="decimal-pad"
                         placeholder="optional"
                         placeholderTextColor={theme.colors.textMuted}
@@ -426,21 +332,10 @@ export default function WorkoutSessionScreen() {
                     </View>
                     <TouchableOpacity
                       onPress={() => markSetDone(exIdx, setIdx)}
-                      style={[
-                        styles.doneBtn,
-                        {
-                          backgroundColor: s.done
-                            ? "#4CAF50"
-                            : theme.colors.primary,
-                        },
-                      ]}
+                      style={[styles.doneBtn, { backgroundColor: s.done ? "#4CAF50" : theme.colors.primary }]}
+                      accessibilityLabel={s.done ? "Set done" : "Mark set done"}
                     >
-                      <Text
-                        style={{
-                          color: "#fff",
-                          fontFamily: fonts.semiBold,
-                        }}
-                      >
+                      <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
                         {s.done ? "Done ✓" : "Done"}
                       </Text>
                     </TouchableOpacity>
@@ -449,13 +344,7 @@ export default function WorkoutSessionScreen() {
               })}
 
               {ex.sets.some((s) => s.weight && parseRepsToInt(s.reps)) && (
-                <Text
-                  style={{
-                    color: theme.colors.textMuted,
-                    fontSize: 12,
-                    marginTop: 4,
-                  }}
-                >
+                <Text style={{ color: theme.colors.textMuted, fontSize: 12, marginTop: 4 }}>
                   Est. 1RM (best set):{" "}
                   {(() => {
                     const best = ex.sets
@@ -471,35 +360,27 @@ export default function WorkoutSessionScreen() {
         })
       )}
 
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+        ]}
+      >
+        <Text style={[styles.small, { color: theme.colors.textMuted }]}>
+          Sets completed: {totalSetsDone}
+        </Text>
+      </View>
+
       <TouchableOpacity
         onPress={finishSession}
         style={[styles.finishBtn, { backgroundColor: theme.colors.primary }]}
       >
-        <Text
-          style={{
-            color: "#fff",
-            fontFamily: fonts.semiBold,
-            fontSize: 16,
-          }}
-        >
-          Finish Session
-        </Text>
+        <Text style={{ color: "#fff", fontFamily: fonts.semiBold, fontSize: 16 }}>Finish Session</Text>
       </TouchableOpacity>
 
       {/* Info modal */}
-      <Modal
-        visible={!!infoFor}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setInfoFor(null)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.35)",
-            justifyContent: "flex-end",
-          }}
-        >
+      <Modal visible={!!infoFor} transparent animationType="slide" onRequestClose={() => setInfoFor(null)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" }}>
           <View
             style={{
               borderTopLeftRadius: 16,
@@ -511,64 +392,27 @@ export default function WorkoutSessionScreen() {
               maxHeight: "80%",
             }}
           >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <Text
-                style={[styles.title, { color: theme.colors.text }]}
-              >
-                {infoFor?.name || "Exercise"}
-              </Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>{infoFor?.name || "Exercise"}</Text>
               <TouchableOpacity onPress={() => setInfoFor(null)}>
-                <Text
-                  style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}
-                >
-                  Close
-                </Text>
+                <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>Close</Text>
               </TouchableOpacity>
             </View>
-            <Text
-              style={{
-                color: theme.colors.textMuted,
-                marginBottom: 8,
-                fontFamily: fonts.medium,
-              }}
-            >
+            <Text style={{ color: theme.colors.textMuted, marginBottom: 8, fontFamily: fonts.medium }}>
               {infoFor?.meta}
             </Text>
             <View style={{ gap: 6 }}>
               {(infoFor?.steps || []).length ? (
                 infoFor?.steps.map((s, i) => (
                   <View key={i} style={{ flexDirection: "row" }}>
-                    <Text
-                      style={{
-                        color: theme.colors.textMuted,
-                        width: 20,
-                        fontFamily: fonts.semiBold,
-                      }}
-                    >
+                    <Text style={{ color: theme.colors.textMuted, width: 20, fontFamily: fonts.semiBold }}>
                       {i + 1}.
                     </Text>
-                    <Text
-                      style={{
-                        color: theme.colors.text,
-                        flex: 1,
-                        fontFamily: fonts.regular,
-                      }}
-                    >
-                      {s}
-                    </Text>
+                    <Text style={{ color: theme.colors.text, flex: 1, fontFamily: fonts.regular }}>{s}</Text>
                   </View>
                 ))
               ) : (
-                <Text style={{ color: theme.colors.textMuted }}>
-                  No instructions available.
-                </Text>
+                <Text style={{ color: theme.colors.textMuted }}>No instructions available.</Text>
               )}
             </View>
           </View>
@@ -591,23 +435,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    fontFamily: fonts.regular,
-  },
+  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular },
   small: { fontFamily: fonts.regular, fontSize: 12 },
   doneBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
-  finishBtn: {
-    marginTop: 16,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  restBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
+  finishBtn: { marginTop: 16, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+  restBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
 });

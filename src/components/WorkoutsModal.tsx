@@ -8,15 +8,14 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import { useActivity } from "../../src/context/ActivityContext";
-import { fonts } from "../../src/constants/fonts";
-import { useTheme } from "../../src/ui/ThemeProvider";
+import { useActivity } from "../context/ActivityContext";
+import { fonts } from "../constants/fonts";
+import { useTheme } from "../ui/ThemeProvider";
 import WorkoutsSearchModal from "./WorkoutsSearchModal";
-import { useToast } from "../../src/ui/components/Toast";
-import { useHaptics } from "../../src/ui/hooks/useHaptics";
+import { useToast } from "../ui/components/Toast";
+import { useHaptics } from "../ui/hooks/useHaptics";
 
 type Props = { visible: boolean; onClose: () => void };
 

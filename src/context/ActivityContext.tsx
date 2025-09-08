@@ -124,8 +124,9 @@ const liftsKey = (uid: string) => `lifts:last:${uid}`;
 export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [todayActivity, setTodayActivity] =
-    useState<DailyActivity | null>(null);
+  const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const { user, userProfile } = useAuth();
   const todayString = new Date().toISOString().split("T")[0];
@@ -135,6 +136,11 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchingRef = useRef(false);
   const pedoSubRef = useRef<any>(null);
   const fitnessEnabledRef = useRef<boolean>(true);
+  const activityRef = useRef<DailyActivity | null>(null);
+
+  useEffect(() => {
+    activityRef.current = todayActivity;
+  }, [todayActivity]);
 
   useEffect(() => {
     const uid = user?.uid || null;
@@ -143,6 +149,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (!uid) {
       setTodayActivity(null);
+      activityRef.current = null;
       setLoading(false);
       didInitRef.current = false;
       stopPedo();
@@ -173,10 +180,12 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!available) return;
       pedoSubRef.current = Pedometer.watchStepCount((ev) => {
         const stepsLive = ev.steps || 0;
-        if (todayActivity) {
-          const next = Math.max(todayActivity.steps || 0, stepsLive);
-          updateActivityDoc({ steps: next });
-        }
+        // Use functional update to avoid stale closures
+        applyUpdate((prev) => {
+          const nextSteps = Math.max(prev.steps || 0, stepsLive);
+          if (nextSteps === prev.steps) return prev;
+          return { ...prev, steps: nextSteps };
+        });
       });
       const now = new Date();
       const start = new Date(
@@ -188,11 +197,11 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
         0
       );
       const count = await Pedometer.getStepCountAsync(start, now);
-      if (todayActivity) {
-        updateActivityDoc({
-          steps: Math.max(todayActivity.steps || 0, count.steps || 0),
-        });
-      }
+      applyUpdate((prev) => {
+        const nextSteps = Math.max(prev.steps || 0, count.steps || 0);
+        if (nextSteps === prev.steps) return prev;
+        return { ...prev, steps: nextSteps };
+      });
     } catch {}
   };
   const stopPedo = () => {
@@ -222,6 +231,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       return null;
     }
   };
+
   const writeLocal = async (activity: DailyActivity) => {
     try {
       await AsyncStorage.setItem(
@@ -265,6 +275,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
         };
         if (typeof fromCloud.sleepHours !== "number") fromCloud.sleepHours = 0;
         setTodayActivity(fromCloud);
+        activityRef.current = fromCloud;
         await writeLocal(fromCloud);
         fetchingRef.current = false;
         return;
@@ -274,6 +285,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     const fromLocal = await readLocal(uid, todayString);
     if (fromLocal) {
       setTodayActivity(fromLocal);
+      activityRef.current = fromLocal;
       fetchingRef.current = false;
       return;
     }
@@ -297,14 +309,12 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {}
     await writeLocal(newActivity);
     setTodayActivity(newActivity);
+    activityRef.current = newActivity;
     fetchingRef.current = false;
   };
 
   const computeFromMeals = (meals: Meal[]) => {
-    const totalCalories = meals.reduce(
-      (sum, m) => sum + (m.calories || 0),
-      0
-    );
+    const totalCalories = meals.reduce((sum, m) => sum + (m.calories || 0), 0);
     const macros = meals.reduce(
       (sum, m) => ({
         protein: sum.protein + (m.macros?.protein || 0),
@@ -322,28 +332,40 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     return { totalCalories, macros, micros };
   };
 
-  const safeCloudMerge = async (updated: DailyActivity) => {
-    await writeLocal(updated);
-    setTodayActivity(updated);
-    if (!updated.userId) return;
-    const ref = doc(db, "activities", `${updated.userId}_${updated.date}`);
+  // Atomic update helper: reads latest state, applies update, persists
+  const applyUpdate = async (
+    updater: (prev: DailyActivity) => DailyActivity
+  ) => {
+    const prev = activityRef.current;
+    if (!prev) return;
+    const next = updater(prev);
+    setTodayActivity(next);
+    activityRef.current = next;
+    await writeLocal(next);
     try {
-      await setDoc(ref, updated, { merge: true });
+      const refDoc = doc(db, "activities", `${next.userId}_${next.date}`);
+      await setDoc(refDoc, next, { merge: true });
     } catch {}
   };
 
   const updateActivityDoc = async (updates: Partial<DailyActivity>) => {
-    if (!todayActivity) return;
-    const updated: DailyActivity = { ...todayActivity, ...updates };
-    await safeCloudMerge(updated);
+    await applyUpdate((prev) => ({ ...prev, ...updates }));
   };
 
-  const updateSteps = async (steps: number) =>
-    updateActivityDoc({ steps });
-  const addWater = async (amount: number) =>
-    updateActivityDoc({
-      waterIntake: (todayActivity?.waterIntake || 0) + amount,
-    });
+  const updateSteps = async (steps: number) => {
+    await applyUpdate((prev) => ({
+      ...prev,
+      steps: Math.max(prev.steps || 0, steps),
+    }));
+  };
+
+  const addWater = async (amount: number) => {
+    await applyUpdate((prev) => ({
+      ...prev,
+      waterIntake: (prev.waterIntake || 0) + amount,
+    }));
+  };
+
   const setSleepHours = async (hours: number) => {
     const h = Math.max(0, Math.min(24, Math.round(hours * 10) / 10));
     await updateActivityDoc({ sleepHours: h });
@@ -355,11 +377,12 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       id: Date.now().toString(),
       timestamp: new Date(),
     };
-    const workouts = [...(todayActivity?.workouts || []), newWorkout];
-    await updateActivityDoc({ workouts });
+    await applyUpdate((prev) => ({
+      ...prev,
+      workouts: [...(prev.workouts || []), newWorkout],
+    }));
   };
 
-  // Persist last lifts (by exercise name) for progression hints
   async function updateLastLifts(
     uid: string,
     items: Workout["details"]["items"]
@@ -432,57 +455,69 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
         items: s.items,
       },
     };
-    const workouts = [...(todayActivity?.workouts || []), newWorkout];
-    await updateActivityDoc({ workouts });
+    await applyUpdate((prev) => ({
+      ...prev,
+      workouts: [...(prev.workouts || []), newWorkout],
+    }));
     if (user?.uid) await updateLastLifts(user.uid, s.items);
   };
 
   const removeWorkout = async (id: string) => {
-    const workouts = (todayActivity?.workouts || []).filter(
-      (w) => w.id !== id
-    );
-    await updateActivityDoc({ workouts });
+    await applyUpdate((prev) => ({
+      ...prev,
+      workouts: (prev.workouts || []).filter((w) => w.id !== id),
+    }));
   };
 
   const addMeal = async (m: Omit<Meal, "id" | "timestamp">) => {
-    const newMeal: Meal = {
-      ...m,
-      id: Date.now().toString(),
-      timestamp: new Date(),
-    };
-    const meals = [...(todayActivity?.meals || []), newMeal];
-    const totals = computeFromMeals(meals);
-    await updateActivityDoc({ meals, ...totals });
+    await applyUpdate((prev) => {
+      const newMeal: Meal = {
+        ...m,
+        id: Date.now().toString(),
+        timestamp: new Date(),
+      };
+      const meals = [...(prev.meals || []), newMeal];
+      const totals = computeFromMeals(meals);
+      return { ...prev, meals, ...totals };
+    });
   };
 
   const updateMeal = async (
     id: string,
     patch: Partial<Omit<Meal, "id" | "timestamp">>
   ) => {
-    const meals = (todayActivity?.meals || []).map((m) =>
-      m.id === id
-        ? {
-            ...m,
-            ...patch,
-            macros:
-              patch.macros != null ? { ...m.macros, ...patch.macros } : m.macros,
-          }
-        : m
-    );
-    const totals = computeFromMeals(meals);
-    await updateActivityDoc({ meals, ...totals });
+    await applyUpdate((prev) => {
+      const meals = (prev.meals || []).map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              ...patch,
+              macros:
+                patch.macros != null
+                  ? { ...m.macros, ...patch.macros }
+                  : m.macros,
+            }
+          : m
+      );
+      const totals = computeFromMeals(meals);
+      return { ...prev, meals, ...totals };
+    });
   };
 
   const removeMeal = async (id: string) => {
-    const meals = (todayActivity?.meals || []).filter((m) => m.id !== id);
-    const totals = computeFromMeals(meals);
-    await updateActivityDoc({ meals, ...totals });
+    await applyUpdate((prev) => {
+      const meals = (prev.meals || []).filter((m) => m.id !== id);
+      const totals = computeFromMeals(meals);
+      return { ...prev, meals, ...totals };
+    });
   };
 
   const getTodayProgress = () => {
     const caloriesConsumed = todayActivity?.totalCalories || 0;
     const targetCalories = userProfile?.dailyCalories || 2000;
-    const caloriesRemaining = Math.round(Math.max(0, targetCalories - caloriesConsumed));
+    const caloriesRemaining = Math.round(
+      Math.max(0, targetCalories - caloriesConsumed)
+    );
     const macrosProgress = {
       protein: Math.min(
         100,

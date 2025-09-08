@@ -31,7 +31,7 @@ export default function HistoryScreen() {
         const mine = keys.filter((k) => k.startsWith(`activity:${user.uid}:`));
         const kv = await AsyncStorage.multiGet(mine);
         const list: Row[] = [];
-        for (const [k, v] of kv) {
+        for (const [, v] of kv) {
           if (!v) continue;
           const data = JSON.parse(v);
           list.push({
@@ -53,51 +53,30 @@ export default function HistoryScreen() {
   }, [user?.uid]);
 
   const last7 = useMemo(() => rows.slice(0, 7), [rows]);
-  const avg = (arr: number[]) =>
-    arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+  const avg = (arr: number[]) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0);
   const weekAvgKcal = avg(last7.map((r) => r.calories));
   const weekAvgSteps = avg(last7.map((r) => r.steps));
   const weekWorkouts = last7.reduce((a, b) => a + b.workouts, 0);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-    >
+    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
       <Text style={[styles.title, { color: theme.colors.text }]}>History</Text>
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Last 7 days
-        </Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Last 7 days</Text>
         <Text style={{ color: theme.colors.textMuted }}>
-          Avg kcal: {weekAvgKcal} • Workouts: {weekWorkouts} • Avg steps:{" "}
-          {weekAvgSteps}
+          Avg kcal: {weekAvgKcal} • Workouts: {weekWorkouts} • Avg steps: {weekAvgSteps}
         </Text>
       </View>
 
       {!rows.length ? (
-        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-          No history yet.
-        </Text>
+        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>No history yet.</Text>
       ) : (
         rows.map((r) => (
-          <View
-            key={r.date}
-            style={[
-              styles.item,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-            ]}
-          >
+          <View key={r.date} style={[styles.item, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[styles.date, { color: theme.colors.text }]}>{r.date}</Text>
             <Text style={{ color: theme.colors.textMuted }}>
-              Steps: {r.steps} • Water: {r.water} ml • Workouts: {r.workouts} •
-              Meals: {r.meals}
+              Steps: {r.steps} • Water: {r.water} ml • Workouts: {r.workouts} • Meals: {r.meals}
             </Text>
             <Text style={{ color: theme.colors.textMuted }}>
               Calories: {r.calories} • P{r.protein} C{r.carbs} F{r.fat}

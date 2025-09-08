@@ -24,22 +24,22 @@ function Card({
   subtitle,
   onPress,
   color,
+  disabled,
 }: {
   title: string;
   subtitle: string;
   onPress: () => void;
   color: string;
+  disabled?: boolean;
 }) {
   const { theme } = useTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
       style={[
         styles.card,
-        {
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
-        },
+        { borderColor: theme.colors.border, backgroundColor: theme.colors.surface, opacity: disabled ? 0.7 : 1 },
       ]}
     >
       <View style={{ width: 6, backgroundColor: color, borderRadius: 6, marginRight: 10 }} />
@@ -94,18 +94,21 @@ export default function WorkoutTemplatesScreen() {
         subtitle="Balanced muscle growth with warm-ups, supersets, finisher"
         color="#7E57C2"
         onPress={() => apply({ daysPerWeek: 4, goal: "hypertrophy", focus: "upper_lower" })}
+        disabled={busy}
       />
       <Card
         title="Strength • Full Body (3 days)"
         subtitle="More rest on main lifts, core finisher"
         color="#2962FF"
         onPress={() => apply({ daysPerWeek: 3, goal: "strength", focus: "full_body" })}
+        disabled={busy}
       />
       <Card
         title="Fat Loss • PPL (5 days)"
         subtitle="Higher density, conditioning finishers"
         color="#F4511E"
         onPress={() => apply({ daysPerWeek: 5, goal: "fat_loss", focus: "ppl" })}
+        disabled={busy}
       />
     </ScrollView>
   );
@@ -113,13 +116,6 @@ export default function WorkoutTemplatesScreen() {
 
 const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12, flexDirection: "row", alignItems: "center" },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
 });

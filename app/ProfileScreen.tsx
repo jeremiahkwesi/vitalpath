@@ -11,6 +11,12 @@ export default function ProfileScreen() {
   const { user, userProfile } = useAuth();
   const nav = useNavigation<any>();
 
+  const missingBasics =
+    !userProfile?.name ||
+    !userProfile?.height ||
+    !userProfile?.weight ||
+    !userProfile?.goal;
+
   return (
     <View
       style={{ flex: 1, backgroundColor: theme.colors.appBg, padding: 16 }}
@@ -58,6 +64,25 @@ export default function ProfileScreen() {
               Goal: {userProfile?.goal || "maintain"} • Calories:{" "}
               {userProfile?.dailyCalories || 2000}
             </Text>
+            {missingBasics && (
+              <TouchableOpacity
+                onPress={() => nav.navigate("Setup", { initialStep: 0 })}
+                style={[
+                  styles.smallBtn,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                    marginTop: 8,
+                  },
+                ]}
+              >
+                <Text
+                  style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+                >
+                  Complete profile
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -92,10 +117,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => nav.navigate("Settings")}
-            style={[
-              styles.btn,
-              { backgroundColor: theme.colors.primary },
-            ]}
+            style={[styles.btn, { backgroundColor: theme.colors.primary }]}
           >
             <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
               Settings
@@ -117,4 +139,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
+  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
 });

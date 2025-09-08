@@ -43,6 +43,13 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
   const { addMeal } = useActivity();
   const { user } = useAuth();
 
+  const handleClose = () => {
+    setQuery("");
+    setResults([]);
+    setLoading(false);
+    onClose();
+  };
+
   useEffect(() => {
     let active = true;
     const run = async () => {
@@ -73,7 +80,12 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
   };
 
   const scale = useCallback(
-    (f: Pick<FoodItem, "calories" | "protein" | "carbs" | "fat" | "serving">) => {
+    (
+      f: Pick<
+        FoodItem,
+        "calories" | "protein" | "carbs" | "fat" | "serving"
+      >
+    ) => {
       const baseG = parseGramsFromServing(f.serving) ?? 100;
       const r = grams > 0 ? grams / baseG : 1;
       return {
@@ -228,7 +240,12 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
       <View style={styles.overlay}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -248,7 +265,7 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
                 Search Foods
               </Text>
               <TouchableOpacity
-                onPress={onClose}
+                onPress={handleClose}
                 accessibilityRole="button"
                 accessibilityLabel="Close food search"
               >
@@ -292,9 +309,7 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
             </View>
 
             <View style={styles.row}>
-              <Text
-                style={[styles.label, { color: theme.colors.text }]}
-              >
+              <Text style={[styles.label, { color: theme.colors.text }]}>
                 Portion (g)
               </Text>
               <TextInput

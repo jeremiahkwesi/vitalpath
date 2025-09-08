@@ -32,10 +32,11 @@ export default function RecipeImportScreen() {
   } | null>(null);
 
   const runFromUrl = async () => {
-    if (!url.trim()) return;
+    const u = url.trim();
+    if (!u) return;
     setImporting(true);
     try {
-      const r = await importRecipeFromUrl(url.trim());
+      const r = await importRecipeFromUrl(u);
       setRes(r);
     } catch (e: any) {
       Alert.alert("Import", e?.message || "Failed to import.");
@@ -53,27 +54,27 @@ export default function RecipeImportScreen() {
         ? data.find(
             (n) =>
               n?.["@type"] === "Recipe" ||
-              (Array.isArray(n?.["@type"]) &&
-                n?.["@type"].includes("Recipe"))
+              (Array.isArray(n?.["@type"]) && n?.["@type"].includes("Recipe"))
           ) || data[0]
         : data;
       if (!node) throw new Error("Invalid JSON-LD content.");
-      // Minimal wrapper reusing parser’s logic
       const name = String(node.name || "Imported Recipe").trim();
       const servingsRaw = node.recipeYield || node.yield || 1;
       const servings = Array.isArray(servingsRaw)
         ? Number(servingsRaw[0]) || 1
         : Number(String(servingsRaw).match(/(\d+)/)?.[1] || 1);
-      const ingredients: string[] = (node.recipeIngredient || node.ingredients || []).map(
-        (s: any) => String(s).trim()
-      );
+      const ingredients: string[] = (node.recipeIngredient ||
+        node.ingredients ||
+        []
+      ).map((s: any) => String(s).trim());
       const instr = node.recipeInstructions || [];
       const steps = (Array.isArray(instr) ? instr : [instr])
-        .map((x: any) => (typeof x === "string" ? x : x?.text || ""))
+        .map((x: any) => (typeof x === "string" ? x : x?.text || "")) // handle HowToStep
         .map((s: string) => s.trim())
         .filter(Boolean);
       const nutrition = node.nutrition || {};
-      const toNum = (v: any) => Number(String(v).match(/(\d+(\.\d+)?)/)?.[1] || 0);
+      const toNum = (v: any) =>
+        Number(String(v).match(/(\d+(\.\d+)?)/)?.[1] || 0);
       const totals = {
         calories: toNum(nutrition.calories),
         protein: toNum(nutrition.proteinContent),
@@ -91,7 +92,6 @@ export default function RecipeImportScreen() {
   const save = async () => {
     if (!user?.uid || !res) return;
     try {
-      // Ingredients: we store one "Imported totals" ingredient so totals are correct
       const ingredients = [
         {
           name: "Imported totals",
@@ -136,8 +136,8 @@ export default function RecipeImportScreen() {
         Import Recipe
       </Text>
       <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Paste a recipe URL (JSON‑LD) from popular cooking sites or paste
-        JSON‑LD content directly.
+        Paste a recipe URL (JSON‑LD) from popular cooking sites or paste JSON‑LD
+        content directly.
       </Text>
 
       <Text style={[styles.label, { color: theme.colors.text }]}>URL</Text>
@@ -157,6 +157,7 @@ export default function RecipeImportScreen() {
           value={url}
           onChangeText={setUrl}
           autoCapitalize="none"
+          autoCorrect={false}
         />
         <TouchableOpacity
           onPress={runFromUrl}
@@ -165,6 +166,7 @@ export default function RecipeImportScreen() {
             {
               backgroundColor: theme.colors.primary,
               borderColor: theme.colors.primary,
+              opacity: importing ? 0.7 : 1,
             },
           ]}
           disabled={importing}
@@ -226,9 +228,7 @@ export default function RecipeImportScreen() {
             },
           ]}
         >
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            {res.name}
-          </Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>{res.name}</Text>
           <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>
             Servings: {res.servings}
           </Text>
@@ -293,8 +293,19 @@ export default function RecipeImportScreen() {
 const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
   label: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular },
-  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12, alignItems: "center" },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    fontFamily: fonts.regular,
+  },
+  btn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
   btnTextLight: { color: "#fff", fontFamily: fonts.semiBold },
   card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },

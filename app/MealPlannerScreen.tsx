@@ -37,11 +37,13 @@ export default function MealPlannerScreen() {
   const [allergies, setAllergies] = useState<string>(
     (userProfile?.allergies || []).join(", ")
   );
+  const [busy, setBusy] = useState(false);
 
   const weekStart = useMemo(() => startOfWeek(new Date()), []);
 
   const generateWeek = async () => {
     if (!user?.uid) return Alert.alert("Sign in required");
+    setBusy(true);
     try {
       const plan = await generateMealPlanLocal({
         dailyCalories: Math.max(
@@ -62,6 +64,8 @@ export default function MealPlannerScreen() {
       Alert.alert("Meal Planner", "Week plan applied to your planner.");
     } catch (e: any) {
       Alert.alert("Meal Planner", e?.message || "Failed to create plan.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -70,6 +74,7 @@ export default function MealPlannerScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       <Text style={[styles.title, { color: theme.colors.text }]}>
         AI Meal Planner
@@ -81,7 +86,10 @@ export default function MealPlannerScreen() {
       <View
         style={[
           styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
         ]}
       >
         <Text style={[styles.label, { color: theme.colors.text }]}>
@@ -135,9 +143,7 @@ export default function MealPlannerScreen() {
           })}
         </View>
 
-        <Text
-          style={[styles.label, { color: theme.colors.text, marginTop: 8 }]}
-        >
+        <Text style={[styles.label, { color: theme.colors.text, marginTop: 8 }]}>
           Dietary preferences (comma-separated)
         </Text>
         <TextInput
@@ -176,10 +182,14 @@ export default function MealPlannerScreen() {
 
       <TouchableOpacity
         onPress={generateWeek}
-        style={[styles.apply, { backgroundColor: theme.colors.primary }]}
+        disabled={busy}
+        style={[
+          styles.apply,
+          { backgroundColor: theme.colors.primary, opacity: busy ? 0.7 : 1 },
+        ]}
       >
         <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-          Generate 7-day plan
+          {busy ? "Working…" : "Generate 7-day plan"}
         </Text>
       </TouchableOpacity>
     </ScrollView>

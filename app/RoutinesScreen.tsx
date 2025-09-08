@@ -15,9 +15,7 @@ export default function RoutinesScreen() {
   const { user } = useAuth();
   const nav = useNavigation<any>();
   const [items, setItems] = useState<any[]>([]);
-  const todayDay = (["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-    new Date().getDay()
-  ] || "Mon") as Day;
+  const todayDay = (["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date().getDay()] || "Mon") as Day;
 
   const load = async () => {
     if (!user?.uid) return;
@@ -77,7 +75,7 @@ export default function RoutinesScreen() {
               <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>
                 Days: {[...days].join(", ") || "—"}
               </Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
                 <TouchableOpacity onPress={() => startToday(r)} style={[styles.btn, { backgroundColor: theme.colors.primary }]}>
                   <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Start Today</Text>
                 </TouchableOpacity>

@@ -1,5 +1,5 @@
 // app/RoutineBuilderScreen.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { saveRoutine } from "../src/services/routines";
 import Select from "../src/ui/components/Select";
 import { generateWorkoutRoutineLocal } from "../src/services/aiPlans";
+import { Ionicons } from "@expo/vector-icons";
 
 type Day = "Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat";
 const DAYS: Day[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -51,6 +52,7 @@ export default function RoutineBuilderScreen() {
   const [aiSession, setAISession] = useState("60");
   const [aiEquip, setAIEquip] = useState<string[]>(["Barbell", "Dumbbell", "Bodyweight"]);
   const [aiFocus, setAIFocus] = useState("full_body");
+  const [busy, setBusy] = useState(false);
 
   const draftKey = user?.uid ? `routine:draft:${user.uid}` : "routine:draft:anon";
 
@@ -134,6 +136,25 @@ export default function RoutineBuilderScreen() {
       next.splice(idx, 1);
       return next;
     });
+  const duplicateItem = (idx: number) =>
+    setItems((s) => {
+      const next = [...s];
+      const dup = JSON.parse(JSON.stringify(next[idx])) as DraftItem;
+      dup.groupId = next[idx]?.groupId;
+      next.splice(idx + 1, 0, dup);
+      return next;
+    });
+  const clearAll = () => {
+    Alert.alert("Clear workout", "Remove all exercises?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: () => setItems([]),
+      },
+    ]);
+  };
+
   const addSet = (idx: number) =>
     setItems((s) => {
       const next = [...s];
@@ -161,6 +182,7 @@ export default function RoutineBuilderScreen() {
     if (!user?.uid) return Alert.alert("Sign in", "Please sign in to save workouts.");
     if (!name.trim()) return Alert.alert("Name", "Enter a workout name.");
     if (!items.length) return Alert.alert("Empty", "Add at least one exercise.");
+    setBusy(true);
     try {
       await saveRoutine(user.uid, {
         name: name.trim(),
@@ -171,13 +193,19 @@ export default function RoutineBuilderScreen() {
           name: it.name,
           day: it.day,
           groupId: it.groupId,
-          sets: it.sets.map((s) => ({ reps: s.reps, restSec: Math.max(0, Number(s.restSec || 0)), type: s.type })),
+          sets: it.sets.map((s) => ({
+            reps: s.reps,
+            restSec: Math.max(0, Number(s.restSec || 0)),
+            type: s.type,
+          })),
         })),
       });
       await AsyncStorage.removeItem(draftKey);
       Alert.alert("Saved", "Workout saved.");
     } catch {
       Alert.alert("Error", "Failed to save workout.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -187,6 +215,7 @@ export default function RoutineBuilderScreen() {
   };
 
   const generateAI = async () => {
+    setBusy(true);
     try {
       const draft = await generateWorkoutRoutineLocal({
         daysPerWeek: Math.max(2, Math.min(6, parseInt(aiDays, 10) || 3)),
@@ -201,28 +230,71 @@ export default function RoutineBuilderScreen() {
           name: d.name,
           day: d.day as Day,
           groupId: d.groupId,
-          sets: d.sets.map((s: any) => ({ reps: s.reps, restSec: s.restSec, type: s.type })),
+          sets: d.sets.map((s: any) => ({
+            reps: s.reps,
+            restSec: s.restSec,
+            type: s.type,
+          })),
         }))
       );
       setName(draft.name || "My Workout");
       setShowAI(false);
     } catch (e: any) {
       Alert.alert("AI Builder", e?.message || "Failed to generate routine.");
+    } finally {
+      setBusy(false);
     }
   };
   const isSelected = (val: string) => aiEquip.includes(val);
-  const toggleEquip = (val: string) => setAIEquip((s) => (isSelected(val) ? s.filter((v) => v !== val) : [...s, val]));
+  const toggleEquip = (val: string) =>
+    setAIEquip((s) => (isSelected(val) ? s.filter((v) => v !== val) : [...s, val]));
+
+  const dayGroups = useMemo(() => {
+    const map = new Map<Day, DraftItem[]>();
+    for (const d of DAYS) map.set(d, []);
+    for (const it of items) {
+      const arr = map.get(it.day) || [];
+      arr.push(it);
+      map.set(it.day, arr);
+    }
+    return DAYS.map((d) => ({ day: d, items: map.get(d) || [] })).filter(
+      (g) => g.items.length > 0
+    );
+  }, [items]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}>
-      <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.title, { color: theme.colors.text }]}>Workout Builder</Text>
 
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          ]}
+        >
           <Text style={[styles.label, { color: theme.colors.text }]}>Workout name</Text>
-          <TextInput style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]} value={name} onChangeText={setName} />
+          <TextInput
+            style={[
+              styles.input,
+              { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+            ]}
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g., Upper/Lower Split"
+            placeholderTextColor={theme.colors.textMuted}
+          />
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-            <TouchableOpacity onPress={() => navigation.navigate("Programs")} style={[styles.btn, { backgroundColor: theme.colors.primary }]}>
+            <TouchableOpacity onPress={addExercise} style={[styles.btn, { backgroundColor: theme.colors.primary }]}>
               <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Add exercise</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -231,72 +303,146 @@ export default function RoutineBuilderScreen() {
             >
               <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Generate with AI</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onSave} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}>
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Save</Text>
+            <TouchableOpacity
+              onPress={onSave}
+              disabled={busy}
+              style={[
+                styles.btn,
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1, opacity: busy ? 0.7 : 1 },
+              ]}
+            >
+              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                {busy ? "Saving..." : "Save"}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={startSession} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}>
+            <TouchableOpacity
+              onPress={startSession}
+              style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
+            >
               <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Start Session</Text>
             </TouchableOpacity>
+            {!!items.length && (
+              <TouchableOpacity
+                onPress={clearAll}
+                style={[styles.btn, { backgroundColor: "#FF6B6B" }]}
+              >
+                <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Clear All</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
-        {!items.length ? <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>No exercises yet. Use “Add exercise” or “Generate with AI”.</Text> : null}
+        {!items.length ? (
+          <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+            No exercises yet. Use “Add exercise” or “Generate with AI”.
+          </Text>
+        ) : (
+          dayGroups.map((g) => (
+            <View key={g.day} style={{ marginTop: 12 }}>
+              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold, marginBottom: 6 }}>
+                {g.day}
+              </Text>
+              {g.items.map((it, idx) => {
+                const globalIdx = items.indexOf(it);
+                return (
+                  <View
+                    key={`${it.name}-${idx}-${g.day}`}
+                    style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                  >
+                    <Text style={[styles.exercise, { color: theme.colors.text }]}>
+                      {it.name} {it.groupId ? `• Group ${it.groupId}` : ""}
+                    </Text>
 
-        {items.map((it, idx) => (
-          <View key={`${it.name}-${idx}`} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Text style={[styles.exercise, { color: theme.colors.text }]}>
-              {it.name} {it.groupId ? `• Group ${it.groupId}` : ""}
-            </Text>
-
-            <Select label="Training day" value={it.day} items={DAYS.map((d) => ({ label: d, value: d }))} onChange={(v) => updateItem(idx, { day: v as Day })} />
-            <Select
-              label="Default set type"
-              value={it.sets[0]?.type || "normal"}
-              items={[...SET_TYPES]}
-              onChange={(v) => updateItem(idx, { sets: it.sets.map((s) => ({ ...s, type: v as any })) })}
-            />
-
-            <Text style={[styles.setsTitle, { color: theme.colors.text }]}>Sets</Text>
-            {it.sets.map((s, sIdx) => (
-              <View key={`set-${sIdx}`} style={{ marginBottom: 8 }}>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.small, { color: theme.colors.textMuted }]}>Reps</Text>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
-                      value={s.reps ?? ""}
-                      onChangeText={(t) => updateSet(idx, sIdx, { reps: t })}
-                      placeholder="e.g., 8-12 or 10"
-                      placeholderTextColor={theme.colors.textMuted}
+                    <Select
+                      label="Training day"
+                      value={it.day}
+                      items={DAYS.map((d) => ({ label: d, value: d }))}
+                      onChange={(v) => updateItem(globalIdx, { day: v as Day })}
                     />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.small, { color: theme.colors.textMuted }]}>Rest (sec)</Text>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
-                      value={String(s.restSec)}
-                      onChangeText={(t) => updateSet(idx, sIdx, { restSec: Math.max(0, parseInt(t || "0", 10)) })}
-                      keyboardType="numeric"
+                    <Select
+                      label="Default set type"
+                      value={it.sets[0]?.type || "normal"}
+                      items={[...SET_TYPES]}
+                      onChange={(v) => updateItem(globalIdx, { sets: it.sets.map((s) => ({ ...s, type: v as any })) })}
                     />
-                  </View>
-                </View>
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
-                  <Select label="Set type" value={s.type} items={[...SET_TYPES]} onChange={(v) => updateSet(idx, sIdx, { type: v as any })} />
-                  <TouchableOpacity onPress={() => removeSet(idx, sIdx)} style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
-                    <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Remove set</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
 
-            <TouchableOpacity onPress={() => addSet(idx)} style={[styles.addSetBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>+ Add set</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => removeItem(idx)} style={[styles.removeBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Remove exercise</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+                    <Text style={[styles.setsTitle, { color: theme.colors.text }]}>Sets</Text>
+                    {it.sets.map((s, sIdx) => (
+                      <View key={`set-${sIdx}`} style={{ marginBottom: 8 }}>
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.small, { color: theme.colors.textMuted }]}>Reps</Text>
+                            <TextInput
+                              style={[
+                                styles.input,
+                                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                              ]}
+                              value={s.reps ?? ""}
+                              onChangeText={(t) => updateSet(globalIdx, sIdx, { reps: t })}
+                              placeholder="e.g., 8-12 or 10"
+                              placeholderTextColor={theme.colors.textMuted}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.small, { color: theme.colors.textMuted }]}>Rest (sec)</Text>
+                            <TextInput
+                              style={[
+                                styles.input,
+                                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                              ]}
+                              value={String(s.restSec)}
+                              onChangeText={(t) =>
+                                updateSet(globalIdx, sIdx, {
+                                  restSec: Math.max(0, parseInt(t || "0", 10)),
+                                })
+                              }
+                              keyboardType="numeric"
+                            />
+                          </View>
+                        </View>
+                        <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
+                          <Select
+                            label="Set type"
+                            value={s.type}
+                            items={[...SET_TYPES]}
+                            onChange={(v) => updateSet(globalIdx, sIdx, { type: v as any })}
+                          />
+                          <TouchableOpacity
+                            onPress={() => removeSet(globalIdx, sIdx)}
+                            style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                          >
+                            <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Remove set</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ))}
+
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => addSet(globalIdx)}
+                        style={[styles.addSetBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                      >
+                        <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>+ Add set</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => duplicateItem(globalIdx)}
+                        style={[styles.addSetBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                      >
+                        <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Duplicate</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => removeItem(globalIdx)}
+                        style={[styles.removeBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                      >
+                        <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Remove exercise</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ))
+        )}
 
         {/* AI Modal */}
         <Modal visible={showAI} transparent animationType="slide">
@@ -365,12 +511,17 @@ export default function RoutineBuilderScreen() {
                 />
                 <Text style={[styles.small, { color: theme.colors.textMuted }]}>Session length (minutes)</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  style={[
+                    styles.input,
+                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                  ]}
                   value={aiSession}
                   onChangeText={setAISession}
                   keyboardType="numeric"
                 />
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold, marginTop: 8 }}>Available equipment</Text>
+                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold, marginTop: 8 }}>
+                  Available equipment
+                </Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                   {["Barbell", "Dumbbell", "Machines", "Kettlebell", "Bands", "Bodyweight"].map((e) => {
                     const active = isSelected(e);
@@ -393,8 +544,17 @@ export default function RoutineBuilderScreen() {
                   })}
                 </View>
 
-                <TouchableOpacity onPress={generateAI} style={[styles.apply, { backgroundColor: theme.colors.primary, marginTop: 12 }]}>
-                  <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Generate Routine</Text>
+                <TouchableOpacity
+                  onPress={generateAI}
+                  disabled={busy}
+                  style={[
+                    styles.apply,
+                    { backgroundColor: theme.colors.primary, marginTop: 12, opacity: busy ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+                    {busy ? "Generating…" : "Generate Routine"}
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>

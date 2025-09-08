@@ -31,13 +31,7 @@ const GOALS = [
   { label: "Lose Fat", value: "lose_fat" },
 ] as const;
 
-const ACTIVITIES = [
-  "sedentary",
-  "light",
-  "moderate",
-  "active",
-  "very_active",
-] as const;
+const ACTIVITIES = ["sedentary", "light", "moderate", "active", "very_active"] as const;
 
 const BODY_TYPES = [
   { label: "Ectomorph (lean, hard to gain)", value: "ectomorph" },
@@ -46,19 +40,9 @@ const BODY_TYPES = [
   { label: "Other/Not sure", value: "other" },
 ] as const;
 
-type GoalType =
-  | "lose_weight"
-  | "gain_weight"
-  | "maintain"
-  | "gain_muscle"
-  | "lose_fat";
+type GoalType = "lose_weight" | "gain_weight" | "maintain" | "gain_muscle" | "lose_fat";
 type GenderType = "male" | "female";
-type ActivityLevel =
-  | "sedentary"
-  | "light"
-  | "moderate"
-  | "active"
-  | "very_active";
+type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
 type BodyType = "ectomorph" | "mesomorph" | "endomorph" | "other";
 
 const activityFactorMap: Record<ActivityLevel, number> = {
@@ -69,21 +53,11 @@ const activityFactorMap: Record<ActivityLevel, number> = {
   very_active: 1.9,
 };
 
-function adjustByBodyType(
-  baseCalories: number,
-  goal: GoalType,
-  bodyType: BodyType
-): number {
-  if (
-    bodyType === "ectomorph" &&
-    (goal === "gain_weight" || goal === "gain_muscle")
-  ) {
+function adjustByBodyType(baseCalories: number, goal: GoalType, bodyType: BodyType): number {
+  if (bodyType === "ectomorph" && (goal === "gain_weight" || goal === "gain_muscle")) {
     return Math.round(baseCalories * 1.07);
   }
-  if (
-    bodyType === "endomorph" &&
-    (goal === "lose_weight" || goal === "lose_fat")
-  ) {
+  if (bodyType === "endomorph" && (goal === "lose_weight" || goal === "lose_fat")) {
     return Math.round(baseCalories * 0.93);
   }
   return Math.round(baseCalories);
@@ -165,38 +139,17 @@ export default function ProfileSetupScreen() {
   const { updateUserProfile, user, userProfile } = useAuth();
 
   const [name, setName] = useState(userProfile?.name || "");
-  const [age, setAge] = useState(
-    userProfile?.age != null && userProfile.age > 0
-      ? String(userProfile.age)
-      : ""
-  );
-  const [weight, setWeight] = useState(
-    userProfile?.weight ? String(userProfile.weight) : ""
-  );
-  const [height, setHeight] = useState(
-    userProfile?.height ? String(userProfile.height) : ""
-  );
-  const [gender, setGender] = useState<GenderType>(
-    userProfile?.gender || "male"
-  );
+  const [age, setAge] = useState(userProfile?.age != null && userProfile.age > 0 ? String(userProfile.age) : "");
+  const [weight, setWeight] = useState(userProfile?.weight ? String(userProfile.weight) : "");
+  const [height, setHeight] = useState(userProfile?.height ? String(userProfile.height) : "");
+  const [gender, setGender] = useState<GenderType>(userProfile?.gender || "male");
   const [goal, setGoal] = useState<GoalType>(userProfile?.goal || "maintain");
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(
-    userProfile?.activityLevel || "moderate"
-  );
-  const [bodyType, setBodyType] = useState<BodyType>(
-    userProfile?.bodyType || "other"
-  );
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(userProfile?.activityLevel || "moderate");
+  const [bodyType, setBodyType] = useState<BodyType>(userProfile?.bodyType || "other");
   const [country, setCountry] = useState(userProfile?.country || "");
-  const [timelineWeeks, setTimelineWeeks] = useState(
-    userProfile?.targetTimelineWeeks || 12
-  );
-  const [dietaryPreferences, setDietaryPreferences] = useState(
-    (userProfile?.dietaryPreferences || []).join(", ")
-  );
-  const [allergies, setAllergies] = useState(
-    (userProfile?.allergies || []).join(", ")
-  );
-
+  const [timelineWeeks, setTimelineWeeks] = useState(userProfile?.targetTimelineWeeks || 12);
+  const [dietaryPreferences, setDietaryPreferences] = useState((userProfile?.dietaryPreferences || []).join(", "));
+  const [allergies, setAllergies] = useState((userProfile?.allergies || []).join(", "));
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -320,10 +273,7 @@ export default function ProfileSetupScreen() {
 
       Alert.alert("Profile Saved", "Your AI plan is ready in Planner/History.");
     } catch (error) {
-      Alert.alert(
-        "Saved",
-        "Profile saved. AI plan generation failed; you can retry later."
-      );
+      Alert.alert("Saved", "Profile saved. AI plan generation failed; you can retry later.");
     } finally {
       setLoading(false);
     }
@@ -336,10 +286,7 @@ export default function ProfileSetupScreen() {
           key={i}
           style={[
             styles.dot,
-            {
-              backgroundColor:
-                i <= step ? theme.colors.primary : theme.colors.border,
-            },
+            { backgroundColor: i <= step ? theme.colors.primary : theme.colors.border },
           ]}
         />
       ))}
@@ -348,19 +295,9 @@ export default function ProfileSetupScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.appBg }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-      >
-        <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-          keyboardShouldPersistTaps="handled"
-          contentInsetAdjustmentBehavior="automatic"
-        >
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            Complete Your Profile
-          </Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic">
+          <Text style={[styles.title, { color: theme.colors.text }]}>Complete Your Profile</Text>
           <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
             Help us personalize your AI plan (workouts + meals)
           </Text>
@@ -369,22 +306,9 @@ export default function ProfileSetupScreen() {
 
           {step === 0 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Basics
-              </Text>
-              <LabeledInput
-                label="Name *"
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter your name"
-              />
-              <LabeledInput
-                label="Age *"
-                value={age}
-                onChangeText={setAge}
-                placeholder="Enter your age"
-                keyboardType="numeric"
-              />
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Basics</Text>
+              <LabeledInput label="Name *" value={name} onChangeText={setName} placeholder="Enter your name" />
+              <LabeledInput label="Age *" value={age} onChangeText={setAge} placeholder="Enter your age" keyboardType="numeric" />
               <Select
                 label="Gender *"
                 value={gender}
@@ -394,20 +318,13 @@ export default function ProfileSetupScreen() {
                 ]}
                 onChange={(v) => setGender(v)}
               />
-              <LabeledInput
-                label="Country *"
-                value={country}
-                onChangeText={setCountry}
-                placeholder="e.g., Ghana"
-              />
+              <LabeledInput label="Country *" value={country} onChangeText={setCountry} placeholder="e.g., Ghana" />
             </Card>
           )}
 
           {step === 1 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Body
-              </Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Body</Text>
               <LabeledInput
                 label="Weight (kg) *"
                 value={weight}
@@ -433,9 +350,7 @@ export default function ProfileSetupScreen() {
 
           {step === 2 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Goals
-              </Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Goals</Text>
               <Select
                 label="Primary Goal"
                 value={goal}
@@ -462,9 +377,7 @@ export default function ProfileSetupScreen() {
 
           {step === 3 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Preferences (optional)
-              </Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Preferences (optional)</Text>
               <LabeledTextArea
                 label="Dietary Preferences"
                 value={dietaryPreferences}
@@ -482,9 +395,7 @@ export default function ProfileSetupScreen() {
 
           {step === 4 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Review & Preview
-              </Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Review & Preview</Text>
               {!preview ? (
                 <Text style={{ color: theme.colors.textMuted }}>
                   Enter age, weight, and height to preview targets.
@@ -495,8 +406,7 @@ export default function ProfileSetupScreen() {
                     Estimated daily calories: {preview.calories} kcal
                   </Text>
                   <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
-                    Macros: P {preview.macros.protein}g • C {preview.macros.carbs}
-                    g • F {preview.macros.fat}g
+                    Macros: P {preview.macros.protein}g • C {preview.macros.carbs}g • F {preview.macros.fat}g
                   </Text>
                 </>
               )}
@@ -510,17 +420,9 @@ export default function ProfileSetupScreen() {
             {step > 0 ? (
               <TouchableOpacity
                 onPress={back}
-                style={[
-                  styles.footerBtn,
-                  {
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
+                style={[styles.footerBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
               >
-                <Text style={[styles.footerBtnText, { color: theme.colors.text }]}>
-                  Back
-                </Text>
+                <Text style={[styles.footerBtnText, { color: theme.colors.text }]}>Back</Text>
               </TouchableOpacity>
             ) : (
               <View style={{ flex: 1 }} />
@@ -530,20 +432,15 @@ export default function ProfileSetupScreen() {
               <TouchableOpacity
                 onPress={next}
                 style={[styles.footerBtn, { backgroundColor: theme.colors.primary }]}
+                disabled={!canNext()}
               >
-                <Text style={[styles.footerBtnText, { color: "#fff" }]}>
-                  Next
-                </Text>
+                <Text style={[styles.footerBtnText, { color: "#fff" }]}>Next</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 onPress={handleSave}
                 disabled={loading}
-                style={[
-                  styles.footerBtn,
-                  { backgroundColor: theme.colors.primary },
-                  loading && { opacity: 0.7 },
-                ]}
+                style={[styles.footerBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.7 }]}
               >
                 <Text style={[styles.footerBtnText, { color: "#fff" }]}>
                   {loading ? "Saving…" : "Complete Setup"}
@@ -557,25 +454,13 @@ export default function ProfileSetupScreen() {
   );
 }
 
-function LabeledInput({
-  label,
-  ...props
-}: {
-  label: string;
-} & React.ComponentProps<typeof TextInput>) {
+function LabeledInput({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
   const { theme } = useTheme();
   return (
     <View style={{ marginBottom: 10 }}>
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
       <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.colors.surface2,
-            borderColor: theme.colors.border,
-            color: theme.colors.text,
-          },
-        ]}
+        style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
         placeholderTextColor={theme.colors.textMuted}
         {...props}
       />
@@ -583,26 +468,14 @@ function LabeledInput({
   );
 }
 
-function LabeledTextArea({
-  label,
-  ...props
-}: {
-  label: string;
-} & React.ComponentProps<typeof TextInput>) {
+function LabeledTextArea({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
   const { theme } = useTheme();
   return (
     <View style={{ marginBottom: 10 }}>
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
       <TextInput
         multiline
-        style={[
-          styles.textArea,
-          {
-            backgroundColor: theme.colors.surface2,
-            borderColor: theme.colors.border,
-            color: theme.colors.text,
-          },
-        ]}
+        style={[styles.textArea, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
         placeholderTextColor={theme.colors.textMuted}
         {...props}
       />

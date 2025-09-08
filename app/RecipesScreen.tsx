@@ -35,6 +35,7 @@ export default function RecipesScreen() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [current, setCurrent] = useState<Recipe | null>(null);
   const [mealType, setMealType] = useState<MealType>("lunch");
+  const [q, setQ] = useState("");
 
   const load = async () => {
     if (!user?.uid) return;
@@ -76,7 +77,6 @@ export default function RecipesScreen() {
     const name = current.name.trim();
     if (!name) return Alert.alert("Name", "Enter a recipe name");
     const servings = Math.max(1, Math.round(Number(current.servings || 1)));
-    const totals = computeTotals(current.ingredients || []);
     const payload = {
       name,
       servings,
@@ -135,6 +135,11 @@ export default function RecipesScreen() {
     Alert.alert("Logged", `Added to ${mealType}`);
   };
 
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return s ? items.filter((r) => r.name.toLowerCase().includes(s)) : items;
+  }, [items, q]);
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
@@ -152,7 +157,10 @@ export default function RecipesScreen() {
           onPress={openNew}
           style={[
             styles.btn,
-            { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+            {
+              backgroundColor: theme.colors.primary,
+              borderColor: theme.colors.primary,
+            },
           ]}
         >
           <Text style={styles.btnTextLight}>New recipe</Text>
@@ -161,16 +169,31 @@ export default function RecipesScreen() {
         <MealTypePicker value={mealType} onChange={setMealType} />
       </View>
 
+      <TextInput
+        style={[
+          styles.search,
+          {
+            backgroundColor: theme.colors.surface2,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          },
+        ]}
+        placeholder="Filter recipes"
+        placeholderTextColor={theme.colors.textMuted}
+        value={q}
+        onChangeText={setQ}
+      />
+
       {loading ? (
         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
           Loading…
         </Text>
-      ) : items.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-          No recipes yet. Tap “New recipe” to create one.
+          {q ? "No recipes match your filter." : "No recipes yet. Tap “New recipe”."}
         </Text>
       ) : (
-        items.map((r) => (
+        filtered.map((r) => (
           <View
             key={r.id}
             style={[
@@ -181,9 +204,7 @@ export default function RecipesScreen() {
               },
             ]}
           >
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              {r.name}
-            </Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>{r.name}</Text>
             <Text style={{ color: theme.colors.textMuted }}>
               Servings: {r.servings} • Totals: {r.totals.calories} kcal • P
               {r.totals.protein} C{r.totals.carbs} F{r.totals.fat}
@@ -193,7 +214,10 @@ export default function RecipesScreen() {
                 onPress={() => logOneServing(r)}
                 style={[
                   styles.smallBtn,
-                  { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+                  {
+                    backgroundColor: theme.colors.primary,
+                    borderColor: theme.colors.primary,
+                  },
                 ]}
               >
                 <Text style={styles.btnTextLight}>Log 1 serving</Text>
@@ -208,13 +232,21 @@ export default function RecipesScreen() {
                   },
                 ]}
               >
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontFamily: fonts.semiBold,
+                  }}
+                >
                   Edit
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => remove(r)}
-                style={[styles.smallBtn, { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" }]}
+                style={[
+                  styles.smallBtn,
+                  { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
+                ]}
               >
                 <Text style={styles.btnTextLight}>Delete</Text>
               </TouchableOpacity>
@@ -335,7 +367,13 @@ function RecipeEditorModal({
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
           ]}
         >
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 8,
+            }}
+          >
             <Text style={[styles.header, { color: theme.colors.text }]}>
               {value.id ? "Edit Recipe" : "New Recipe"}
             </Text>
@@ -349,21 +387,40 @@ function RecipeEditorModal({
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={[styles.label, { color: theme.colors.text }]}>Name</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
               value={value.name}
               onChangeText={(t) => onChange({ ...value, name: t })}
             />
             <Text style={[styles.label, { color: theme.colors.text }]}>Servings</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
               value={String(value.servings || 1)}
               keyboardType="numeric"
               onChangeText={(t) =>
-                onChange({ ...value, servings: Math.max(1, parseInt(t || "1", 10)) })
+                onChange({
+                  ...value,
+                  servings: Math.max(1, parseInt(t || "1", 10)),
+                })
               }
             />
 
-            <Text style={[styles.label, { color: theme.colors.text }]}>Ingredients</Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Ingredients
+            </Text>
             {(value.ingredients || []).map((it, idx) => (
               <View
                 key={idx}
@@ -376,7 +433,14 @@ function RecipeEditorModal({
                 }}
               >
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.colors.surface2,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
+                  ]}
                   placeholder="Name (e.g., Chicken breast)"
                   placeholderTextColor={theme.colors.textMuted}
                   value={it.name}
@@ -384,15 +448,35 @@ function RecipeEditorModal({
                 />
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <TextInput
-                    style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
                     placeholder="Grams"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="numeric"
                     value={it.grams != null ? String(it.grams) : ""}
-                    onChangeText={(t) => updateIng(idx, { grams: Math.max(0, parseInt(t || "0", 10)) })}
+                    onChangeText={(t) =>
+                      updateIng(idx, {
+                        grams: Math.max(0, parseInt(t || "0", 10)),
+                      })
+                    }
                   />
                   <TextInput
-                    style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
                     placeholder="Quantity (e.g., 1 cup)"
                     placeholderTextColor={theme.colors.textMuted}
                     value={it.quantity || ""}
@@ -401,43 +485,94 @@ function RecipeEditorModal({
                 </View>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <TextInput
-                    style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
                     placeholder="Calories"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="numeric"
                     value={String(it.calories || 0)}
-                    onChangeText={(t) => updateIng(idx, { calories: Math.max(0, parseInt(t || "0", 10)) })}
+                    onChangeText={(t) =>
+                      updateIng(idx, {
+                        calories: Math.max(0, parseInt(t || "0", 10)),
+                      })
+                    }
                   />
                   <TextInput
-                    style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
                     placeholder="Protein (g)"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="numeric"
                     value={String(it.protein || 0)}
-                    onChangeText={(t) => updateIng(idx, { protein: Math.max(0, parseInt(t || "0", 10)) })}
+                    onChangeText={(t) =>
+                      updateIng(idx, {
+                        protein: Math.max(0, parseInt(t || "0", 10)),
+                      })
+                    }
                   />
                 </View>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <TextInput
-                    style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
                     placeholder="Carbs (g)"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="numeric"
                     value={String(it.carbs || 0)}
-                    onChangeText={(t) => updateIng(idx, { carbs: Math.max(0, parseInt(t || "0", 10)) })}
+                    onChangeText={(t) =>
+                      updateIng(idx, {
+                        carbs: Math.max(0, parseInt(t || "0", 10)),
+                      })
+                    }
                   />
                   <TextInput
-                    style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                      },
+                    ]}
                     placeholder="Fat (g)"
                     placeholderTextColor={theme.colors.textMuted}
                     keyboardType="numeric"
                     value={String(it.fat || 0)}
-                    onChangeText={(t) => updateIng(idx, { fat: Math.max(0, parseInt(t || "0", 10)) })}
+                    onChangeText={(t) =>
+                      updateIng(idx, {
+                        fat: Math.max(0, parseInt(t || "0", 10)),
+                      })
+                    }
                   />
                 </View>
                 <TouchableOpacity
                   onPress={() => removeIng(idx)}
-                  style={[styles.smallBtn, { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" }]}
+                  style={[
+                    styles.smallBtn,
+                    { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
+                  ]}
                 >
                   <Text style={styles.btnTextLight}>Remove</Text>
                 </TouchableOpacity>
@@ -445,14 +580,32 @@ function RecipeEditorModal({
             ))}
             <TouchableOpacity
               onPress={addIng}
-              style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+              style={[
+                styles.smallBtn,
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                },
+              ]}
             >
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontFamily: fonts.semiBold,
+                }}
+              >
                 + Add ingredient
               </Text>
             </TouchableOpacity>
 
-            <Text style={[styles.label, { color: theme.colors.text, marginTop: 8 }]}>Steps</Text>
+            <Text
+              style={[
+                styles.label,
+                { color: theme.colors.text, marginTop: 8 },
+              ]}
+            >
+              Steps
+            </Text>
             <TextInput
               style={[
                 styles.input,
@@ -469,7 +622,13 @@ function RecipeEditorModal({
               placeholderTextColor={theme.colors.textMuted}
               value={(value.steps || []).join("\n")}
               onChangeText={(t) =>
-                onChange({ ...value, steps: t.split("\n").map((s) => s.trim()).filter(Boolean) })
+                onChange({
+                  ...value,
+                  steps: t
+                    .split("\n")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                })
               }
             />
 
@@ -482,20 +641,35 @@ function RecipeEditorModal({
                 marginTop: 10,
               }}
             >
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold, marginBottom: 4 }}>
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontFamily: fonts.semiBold,
+                  marginBottom: 4,
+                }}
+              >
                 Nutrition
               </Text>
               <Text style={{ color: theme.colors.textMuted }}>
-                Total: {totals.calories} kcal • P{totals.protein} C{totals.carbs} F{totals.fat}
+                Total: {totals.calories} kcal • P{totals.protein} C{totals.carbs} F
+                {totals.fat}
               </Text>
               <Text style={{ color: theme.colors.textMuted }}>
-                Per serving: {per.calories} kcal • P{per.protein} C{per.carbs} F{per.fat}
+                Per serving: {per.calories} kcal • P{per.protein} C{per.carbs} F
+                {per.fat}
               </Text>
             </View>
 
             <TouchableOpacity
               onPress={onSave}
-              style={[styles.btn, { backgroundColor: theme.colors.primary, marginTop: 10, borderColor: theme.colors.primary }]}
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: theme.colors.primary,
+                  marginTop: 10,
+                  borderColor: theme.colors.primary,
+                },
+              ]}
             >
               <Text style={styles.btnTextLight}>Save</Text>
             </TouchableOpacity>
@@ -511,10 +685,46 @@ const styles = StyleSheet.create({
   card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   label: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular, marginBottom: 8 },
-  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
-  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, alignSelf: "flex-start", marginTop: 6 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    fontFamily: fonts.regular,
+    marginBottom: 8,
+  },
+  btn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  smallBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
   btnTextLight: { color: "#fff", fontFamily: fonts.semiBold },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
-  modalBody: { borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: 1, padding: 16, maxHeight: "88%" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+  modalBody: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderTopWidth: 1,
+    padding: 16,
+    maxHeight: "88%",
+  },
+  search: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: fonts.regular,
+    marginTop: 8,
+  },
 });

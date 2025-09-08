@@ -1,14 +1,6 @@
 // app/WeeklyReportScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Platform,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from "react-native";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
@@ -54,7 +46,7 @@ export default function WeeklyReportScreen() {
         const my = keys.filter((k) => k.startsWith(`activity:${user.uid}:`));
         const kv = await AsyncStorage.multiGet(my);
         const map: Record<string, any> = {};
-        for (const [k, v] of kv) {
+        for (const [, v] of kv) {
           if (!v) continue;
           const data = JSON.parse(v);
           map[data.date] = data;
@@ -108,14 +100,7 @@ export default function WeeklyReportScreen() {
   const generate = async () => {
     setLoading(true);
     try {
-      const text = await getWeeklyReportNarrativeAI(
-        {
-          days,
-          totals,
-          averages,
-        },
-        userProfile || undefined
-      );
+      const text = await getWeeklyReportNarrativeAI({ days, totals, averages }, userProfile || undefined);
       setNarrative(text);
     } catch (e: any) {
       Alert.alert("AI", e?.message || "Failed to generate.");
@@ -179,10 +164,7 @@ export default function WeeklyReportScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-    >
+    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
       <Text style={[styles.header, { color: theme.colors.text }]}>AI Weekly Report</Text>
       <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
         Generate a weekly summary with AI narrative and export as PDF.

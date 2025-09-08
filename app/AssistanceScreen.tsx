@@ -14,7 +14,6 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../src/constants/colors";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
 import { useActivity } from "../src/context/ActivityContext";
@@ -39,6 +38,7 @@ export default function AssistanceScreen() {
 
   const { user, userProfile } = useAuth();
   const { todayActivity, getTodayProgress } = useActivity();
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -58,29 +58,34 @@ export default function AssistanceScreen() {
     user?.uid && `${user.uid}_${new Date().toISOString().split("T")[0]}`;
 
   useEffect(() => {
-    loadConversationHistory();
+    (async () => {
+      if (!convId) return;
+      try {
+        const ref = doc(db, "conversations", convId);
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? (snap.data() as any) : null;
+        const arr: Message[] = Array.isArray(data?.messages)
+          ? data.messages
+              .map((m: any) => ({
+                id: String(m.id || Date.now()),
+                text: String(m.text || m.content || ""),
+                isUser: !!(m.isUser ?? m.role === "user"),
+                timestamp: Number(m.timestamp || Date.now()),
+              }))
+              .filter((m: Message) => m.text.trim().length > 0)
+              .slice(-50)
+          : [];
+        if (arr.length) setMessages(arr);
+      } catch (e) {
+        // Silent; keep welcome message
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convId]);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
-
-  const loadConversationHistory = async () => {
-    if (!convId) return;
-    try {
-      const ref = doc(db, "conversations", convId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = snap.data() as any;
-        if (Array.isArray(data.messages) && data.messages.length > 0) {
-          setMessages(data.messages);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading conversation:", error);
-    }
-  };
 
   const persistConversation = async (msgs: Message[]) => {
     if (!convId || !user) return;
@@ -97,17 +102,18 @@ export default function AssistanceScreen() {
         },
         { merge: true }
       );
-    } catch (error) {
-      console.error("Error persisting conversation:", error);
+    } catch {
+      // ignore offline
     }
   };
 
   const handleSend = async () => {
-    if (!inputText.trim()) return;
+    const text = inputText.trim();
+    if (!text || sending) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: inputText.trim(),
+      text,
       isUser: true,
       timestamp: Date.now(),
     };
@@ -144,17 +150,14 @@ export default function AssistanceScreen() {
         healthConditions: userProfile?.healthConditions || [],
       };
 
-      const history = optimistic
-        .slice(-8)
-        .map((m) => ({
-          role: m.isUser ? ("user" as const) : ("assistant" as const),
-          content: m.text,
-        }))
-        .slice(0, -1);
+      const history = optimistic.slice(-8).map((m) => ({
+        role: m.isUser ? ("user" as const) : ("assistant" as const),
+        content: m.text,
+      }));
 
       const call = httpsCallable(functions, "healthChat");
       const resp: any = await call({
-        message: userMsg.text,
+        message: text,
         profile: healthContext,
         history,
       });
@@ -174,7 +177,6 @@ export default function AssistanceScreen() {
       setMessages(next);
       await persistConversation(next);
     } catch (error: any) {
-      console.error("healthChat call error:", error?.message || error);
       toast.error("AI is temporarily unavailable. Please try again later.");
     } finally {
       setSending(false);
@@ -182,32 +184,36 @@ export default function AssistanceScreen() {
   };
 
   const handleQuickQuestion = (question: string) => {
+    if (sending) return;
     setInputText(question);
-    setTimeout(() => {
-      if (!sending) {
-        handleSend();
-      }
-    }, 80);
+    setTimeout(handleSend, 60);
   };
 
   const clearConversation = () => {
     if (!userProfile?.name && messages.length <= 1) return;
-    setMessages([
+    Alert.alert("New conversation", "Clear current chat?", [
+      { text: "Cancel", style: "cancel" },
       {
-        id: "welcome",
-        text:
-          `Hello ${userProfile?.name || "there"}! 👋 I’m your AI health assistant. ` +
-          `Ask me anything.`,
-        isUser: false,
-        timestamp: Date.now(),
+        text: "Clear",
+        style: "destructive",
+        onPress: () => {
+          const base: Message = {
+            id: "welcome",
+            text:
+              `Hello ${userProfile?.name || "there"}! 👋 I’m your AI health assistant. ` +
+              `Ask me anything.`,
+            isUser: false,
+            timestamp: Date.now(),
+          };
+          setMessages([base]);
+          persistConversation([base]);
+        },
       },
     ]);
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.appBg }}>
       <View
         style={[
           styles.header,
@@ -220,15 +226,26 @@ export default function AssistanceScreen() {
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
           AI Health Assistant
         </Text>
-        <TouchableOpacity onPress={clearConversation} style={styles.clearButton}>
-          <Ionicons name="refresh-outline" size={20} color={theme.colors.primary} />
+        <TouchableOpacity
+          onPress={clearConversation}
+          style={styles.clearButton}
+          accessibilityLabel="Clear conversation"
+        >
+          <Ionicons
+            name="refresh-outline"
+            size={20}
+            color={theme.colors.primary}
+          />
         </TouchableOpacity>
       </View>
 
       <View
         style={[
           styles.statsBar,
-          { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border },
+          {
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          },
         ]}
       >
         <View style={styles.statItem}>
@@ -349,7 +366,10 @@ export default function AssistanceScreen() {
         <View
           style={[
             styles.quickButtons,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+            },
           ]}
         >
           <ScrollView
@@ -377,6 +397,7 @@ export default function AssistanceScreen() {
                   },
                 ]}
                 onPress={() => handleQuickQuestion(q)}
+                accessibilityLabel={q}
               >
                 <Text
                   style={[
@@ -394,7 +415,10 @@ export default function AssistanceScreen() {
         <View
           style={[
             styles.inputContainer,
-            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+            },
           ]}
         >
           <TextInput
@@ -412,6 +436,7 @@ export default function AssistanceScreen() {
             placeholderTextColor={theme.colors.textMuted}
             multiline
             maxLength={500}
+            accessibilityLabel="Type your question"
           />
           <TouchableOpacity
             style={[
@@ -421,6 +446,7 @@ export default function AssistanceScreen() {
             ]}
             onPress={handleSend}
             disabled={sending}
+            accessibilityLabel="Send"
           >
             <Ionicons
               name={sending ? "hourglass-outline" : "send"}
@@ -475,7 +501,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginBottom: 12,
     ...(Platform.OS === "web"
-      ? { boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }
+      ? { boxShadow: "0 1px 3px rgba(0,0,0,0.08)" as any }
       : {
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 1 },

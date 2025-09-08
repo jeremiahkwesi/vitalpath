@@ -7,9 +7,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from "react-native";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -106,8 +105,8 @@ export default function PlanModal({
 
   const regenerate = async () => {
     if (!uid || !userProfile) return;
+    setLoading(true);
     try {
-      setLoading(true);
       const curate = httpsCallable(functions, "curateInitialPlan");
       const resp: any = await curate({
         profile: {
@@ -128,6 +127,12 @@ export default function PlanModal({
       const p = resp?.data?.plan;
       if (p) {
         setPlan(p);
+        // Persist to Firestore so it's available later
+        await setDoc(
+          doc(db, "users", uid, "plans", "current"),
+          { ...p, userId: uid, updatedAt: Date.now() },
+          { merge: true }
+        );
         h.impact("light");
         toast.success("Plan regenerated");
       } else {
@@ -196,14 +201,22 @@ export default function PlanModal({
               {loading ? "Loading plan…" : "No plan yet. Tap Regenerate."}
             </Text>
           ) : (
-            <ScrollView style={{ maxHeight: "80%" }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ maxHeight: "80%" }}
+              showsVerticalScrollIndicator={false}
+            >
               <View
                 style={[
                   styles.card,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surface,
+                  },
                 ]}
               >
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                <Text
+                  style={[styles.cardTitle, { color: theme.colors.text }]}
+                >
                   Targets
                 </Text>
                 <Text style={[styles.line, { color: theme.colors.text }]}>
@@ -215,10 +228,13 @@ export default function PlanModal({
                   {Math.round(plan.macros.fat)}g
                 </Text>
                 {!!plan.micros && (
-                  <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+                  <Text
+                    style={{ color: theme.colors.textMuted, marginTop: 4 }}
+                  >
                     Key micros (daily): fiber {plan.micros.fiber ?? 0}g, sodium{" "}
-                    {plan.micros.sodium ?? 0}mg, K {plan.micros.potassium ?? 0}mg,
-                    vit C {plan.micros.vitaminC ?? 0}mg, Ca{" "}
+                    {plan.micros.sodium ?? 0}mg, K{" "}
+                    {plan.micros.potassium ?? 0}mg, vit C{" "}
+                    {plan.micros.vitaminC ?? 0}mg, Ca{" "}
                     {plan.micros.calcium ?? 0}mg, Fe {plan.micros.iron ?? 0}mg
                   </Text>
                 )}
@@ -227,19 +243,25 @@ export default function PlanModal({
                 </Text>
               </View>
 
-              {/* Workouts */}
               <View
                 style={[
                   styles.card,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surface,
+                  },
                 ]}
               >
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                <Text
+                  style={[styles.cardTitle, { color: theme.colors.text }]}
+                >
                   Weekly Workouts (example)
                 </Text>
                 {plan.weeklyPlan.workouts.map((d, i) => (
                   <View key={`w-${i}`} style={{ marginBottom: 8 }}>
-                    <Text style={[styles.dayLabel, { color: theme.colors.text }]}>
+                    <Text
+                      style={[styles.dayLabel, { color: theme.colors.text }]}
+                    >
                       {d.day}
                       {!!d.location && ` • ${d.location}`}
                       {!!d.focus && ` • ${d.focus}`}
@@ -247,8 +269,12 @@ export default function PlanModal({
                     </Text>
                     {Array.isArray(d.exercises) && d.exercises.length > 0 ? (
                       d.exercises.map((ex, j) => (
-                        <Text key={`we-${j}`} style={{ color: theme.colors.textMuted }}>
-                          • {ex.name} — {ex.sets} × {ex.reps}, rest {ex.restSec}s
+                        <Text
+                          key={`we-${j}`}
+                          style={{ color: theme.colors.textMuted }}
+                        >
+                          • {ex.name} — {ex.sets} × {ex.reps}, rest {ex.restSec}
+                          s
                           {ex.equipment?.length
                             ? ` (${ex.equipment.join(", ")})`
                             : ""}
@@ -257,7 +283,10 @@ export default function PlanModal({
                       ))
                     ) : (
                       (d.blocks || []).map((b, j) => (
-                        <Text key={`wb-${j}`} style={{ color: theme.colors.textMuted }}>
+                        <Text
+                          key={`wb-${j}`}
+                          style={{ color: theme.colors.textMuted }}
+                        >
                           • {b.name} ({b.type}) — {b.duration} min
                         </Text>
                       ))
@@ -266,19 +295,25 @@ export default function PlanModal({
                 ))}
               </View>
 
-              {/* Meals */}
               <View
                 style={[
                   styles.card,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surface,
+                  },
                 ]}
               >
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                <Text
+                  style={[styles.cardTitle, { color: theme.colors.text }]}
+                >
                   Weekly Meals (example)
                 </Text>
                 {plan.weeklyPlan.meals.map((d, i) => (
                   <View key={`m-${i}`} style={{ marginBottom: 8 }}>
-                    <Text style={[styles.dayLabel, { color: theme.colors.text }]}>
+                    <Text
+                      style={[styles.dayLabel, { color: theme.colors.text }]}
+                    >
                       {d.day}
                     </Text>
                     {d.items.map((m, j) => (
@@ -289,18 +324,10 @@ export default function PlanModal({
                           {m.serving ? ` (${m.serving})` : ""}
                         </Text>
                         <Text style={{ color: theme.colors.textMuted }}>
-                          {Math.round(m.calories)} kcal (P {Math.round(
-                            m.protein
-                          )} C {Math.round(m.carbs)} F {Math.round(m.fat)})
+                          {Math.round(m.calories)} kcal (P{" "}
+                          {Math.round(m.protein)} C {Math.round(m.carbs)} F{" "}
+                          {Math.round(m.fat)})
                         </Text>
-                        {!!m.components?.length && (
-                          <Text style={{ color: theme.colors.textMuted }}>
-                            Components:{" "}
-                            {m.components
-                              .map((c) => `${c.name} ${c.grams}g`)
-                              .join(" • ")}
-                          </Text>
-                        )}
                       </View>
                     ))}
                   </View>
@@ -311,10 +338,15 @@ export default function PlanModal({
                 <View
                   style={[
                     styles.card,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.surface,
+                    },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.cardTitle, { color: theme.colors.text }]}
+                  >
                     Common Foods
                   </Text>
                   <Text style={{ color: theme.colors.textMuted }}>
@@ -327,10 +359,15 @@ export default function PlanModal({
                 <View
                   style={[
                     styles.card,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.surface,
+                    },
                   ]}
                 >
-                  <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.cardTitle, { color: theme.colors.text }]}
+                  >
                     Notes
                   </Text>
                   <Text style={{ color: theme.colors.textMuted }}>

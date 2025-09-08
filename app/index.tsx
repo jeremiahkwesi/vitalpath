@@ -1,6 +1,13 @@
+// app/index.tsx
 import "react-native-gesture-handler";
-import React, { useEffect } from "react";
-import { Platform, View, Text, TextInput } from "react-native";
+import React, { useEffect, Suspense } from "react";
+import {
+  Platform,
+  View,
+  Text,
+  ActivityIndicator,
+  TextInput,
+} from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -12,31 +19,44 @@ import { StatusBar } from "expo-status-bar";
 
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { ActivityProvider } from "../src/context/ActivityContext";
-
-import AuthScreen from "./AuthScreen";
-import ProfileSetupScreen from "./ProfileSetupScreen";
-import DietaryScreen from "./DietaryScreen";
-import AssistanceScreen from "./AssistanceScreen";
-import HistoryScreen from "./HistoryScreen";
-import ScanFoodScreen from "./ScanFoodScreen";
-import ProgramsScreen from "./ProgramsScreen";
-import RoutineBuilderScreen from "./RoutineBuilderScreen";
-import WorkoutSessionScreen from "./WorkoutSessionScreen";
-import WorkoutsHomeScreen from "./WorkoutsHomeScreen";
-import RoutinesScreen from "./RoutinesScreen";
-import MealPlannerScreen from "./MealPlannerScreen";
-import ProfileScreen from "./ProfileScreen";
-import SettingsScreen from "./SettingsScreen";
-import LibraryScreen from "./LibraryScreen";
-import EditProfileScreen from "./EditProfileScreen";
-import EditGoalsScreen from "./EditGoalsScreen";
-import StrengthStatsScreen from "./StrengthStatsScreen";
-import WorkoutTemplatesScreen from "./WorkoutTemplatesScreen";
-
-import ErrorBoundary from "../src/components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "../src/ui/ThemeProvider";
 import { ToastProvider } from "../src/ui/components/Toast";
+import ErrorBoundary from "../src/components/ErrorBoundary";
 import { configureForegroundNotifications } from "../src/utils/notifications";
+
+// Lazy screens (top-level to avoid re-creating lazies on re-render)
+const AuthScreen = React.lazy(() => import("./AuthScreen"));
+const ProfileSetupScreen = React.lazy(() => import("./ProfileSetupScreen"));
+const DietaryScreen = React.lazy(() => import("./DietaryScreen"));
+const AssistanceScreen = React.lazy(() => import("./AssistanceScreen"));
+const HistoryScreen = React.lazy(() => import("./HistoryScreen"));
+const ScanFoodScreen = React.lazy(() => import("./ScanFoodScreen"));
+const ProgramsScreen = React.lazy(() => import("./ProgramsScreen"));
+const RoutineBuilderScreen = React.lazy(() => import("./RoutineBuilderScreen"));
+const WorkoutSessionScreen = React.lazy(() => import("./WorkoutSessionScreen"));
+const WorkoutsHomeScreen = React.lazy(() => import("./WorkoutsHomeScreen"));
+const RoutinesScreen = React.lazy(() => import("./RoutinesScreen"));
+const MealPlannerScreen = React.lazy(() => import("./MealPlannerScreen"));
+const ProfileScreen = React.lazy(() => import("./ProfileScreen"));
+const SettingsScreen = React.lazy(() => import("./SettingsScreen"));
+const LibraryScreen = React.lazy(() => import("./LibraryScreen"));
+const EditProfileScreen = React.lazy(() => import("./EditProfileScreen"));
+const EditGoalsScreen = React.lazy(() => import("./EditGoalsScreen"));
+const StrengthStatsScreen = React.lazy(() => import("./StrengthStatsScreen"));
+const WorkoutTemplatesScreen = React.lazy(
+  () => import("./WorkoutTemplatesScreen")
+);
+const FoodSearchScreen = React.lazy(() => import("./FoodSearchScreen"));
+const FoodAddScreen = React.lazy(() => import("./FoodAddScreen"));
+const MealsDiaryScreen = React.lazy(() => import("./MealsDiaryScreen"));
+const RecipesScreen = React.lazy(() => import("./RecipesScreen"));
+const RecipeImportScreen = React.lazy(() => import("./RecipeImportScreen"));
+const PantryScreen = React.lazy(() => import("./PantryScreen"));
+const PantryMealIdeasScreen = React.lazy(
+  () => import("./PantryMealIdeasScreen")
+);
+const WeeklyCheckInScreen = React.lazy(() => import("./WeeklyCheckInScreen"));
+const WeeklyReportScreen = React.lazy(() => import("./WeeklyReportScreen"));
 
 export type RootTabParamList = {
   Home: undefined;
@@ -52,15 +72,39 @@ const Stack = createNativeStackNavigator();
 
 function applyAccessibilityDefaults() {
   try {
-    if ((Text as any) && (Text as any).defaultProps == null)
-      (Text as any).defaultProps = {};
+    (Text as any).defaultProps = (Text as any).defaultProps || {};
     (Text as any).defaultProps.maxFontSizeMultiplier = 1.3;
-
-    if ((TextInput as any) && (TextInput as any).defaultProps == null)
-      (TextInput as any).defaultProps = {};
+    (TextInput as any).defaultProps = (TextInput as any).defaultProps || {};
     (TextInput as any).defaultProps.maxFontSizeMultiplier = 1.3;
-  } catch {}
+  } catch (e) {
+    // no-op
+  }
 }
+
+const LoadingScreen = React.memo(() => {
+  const { theme } = useTheme();
+  return (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: theme.colors.appBg,
+      }}
+    >
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <Text
+        style={{
+          marginTop: 16,
+          color: theme.colors.text,
+          fontSize: 16,
+        }}
+      >
+        Loading...
+      </Text>
+    </View>
+  );
+});
 
 function PlanStack() {
   const { theme } = useTheme();
@@ -80,6 +124,7 @@ function PlanStack() {
                 size={24}
                 color={theme.colors.text}
                 onPress={() => navigation.navigate("Home" as never)}
+                style={{ marginRight: 8 }}
               />
             );
           }
@@ -94,47 +139,47 @@ function PlanStack() {
       />
       <Stack.Screen
         name="FoodSearch"
-        component={require("./FoodSearchScreen").default}
+        component={FoodSearchScreen}
         options={{ title: "Search Food" }}
       />
       <Stack.Screen
         name="FoodAdd"
-        component={require("./FoodAddScreen").default}
+        component={FoodAddScreen}
         options={{ title: "Add Food" }}
       />
       <Stack.Screen
         name="MealsDiary"
-        component={require("./MealsDiaryScreen").default}
-        options={{ title: "Today’s Meals" }}
+        component={MealsDiaryScreen}
+        options={{ title: "Today's Meals" }}
       />
       <Stack.Screen
         name="Recipes"
-        component={require("./RecipesScreen").default}
+        component={RecipesScreen}
         options={{ title: "My Recipes" }}
       />
       <Stack.Screen
         name="RecipeImport"
-        component={require("./RecipeImportScreen").default}
+        component={RecipeImportScreen}
         options={{ title: "Import Recipe" }}
       />
       <Stack.Screen
-        name="Grocery"
-        component={require("./GroceryListScreen").default}
-        options={{ title: "Grocery List" }}
-      />
-      <Stack.Screen
         name="Pantry"
-        component={require("./PantryScreen").default}
+        component={PantryScreen}
         options={{ title: "Pantry" }}
       />
       <Stack.Screen
+        name="PantryMealIdeas"
+        component={PantryMealIdeasScreen}
+        options={{ title: "Pantry → Meals" }}
+      />
+      <Stack.Screen
         name="WeeklyCheckIn"
-        component={require("./WeeklyCheckInScreen").default}
+        component={WeeklyCheckInScreen}
         options={{ title: "Weekly Check‑in" }}
       />
       <Stack.Screen
         name="WeeklyReport"
-        component={require("./WeeklyReportScreen").default}
+        component={WeeklyReportScreen}
         options={{ title: "AI Weekly Report" }}
       />
       <Stack.Screen
@@ -322,35 +367,22 @@ function TabNav() {
             backgroundColor: "transparent",
           },
           tabBarBackground: TabBarBackground,
-          tabBarLabelStyle: { fontSize: 12, paddingBottom: 6 },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            paddingBottom: 6,
+          },
           tabBarHideOnKeyboard: true,
         })}
       >
-        <Tab.Screen
-          name="Home"
-          component={DietaryScreen}
-          options={{ title: "Home" }}
-        />
-        <Tab.Screen
-          name="Scan"
-          component={ScanFoodScreen}
-          options={{ title: "Scan" }}
-        />
-        <Tab.Screen
-          name="Plan"
-          component={PlanStack}
-          options={{ title: "Plan" }}
-        />
+        <Tab.Screen name="Home" component={DietaryScreen} options={{ title: "Home" }} />
+        <Tab.Screen name="Scan" component={ScanFoodScreen} options={{ title: "Scan" }} />
+        <Tab.Screen name="Plan" component={PlanStack} options={{ title: "Plan" }} />
         <Tab.Screen
           name="Workouts"
           component={WorkoutsStack}
           options={{ title: "Workouts" }}
         />
-        <Tab.Screen
-          name="Coach"
-          component={CoachStack}
-          options={{ title: "Coach" }}
-        />
+        <Tab.Screen name="Coach" component={CoachStack} options={{ title: "Coach" }} />
         <Tab.Screen
           name="Profile"
           component={ProfileStack}
@@ -370,13 +402,21 @@ function AppShell() {
     configureForegroundNotifications();
   }, []);
 
-  if (!user) return <AuthScreen />;
+  if (!user) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <AuthScreen />
+      </Suspense>
+    );
+  }
 
   return (
     <ActivityProvider>
       <ErrorBoundary>
         <StatusBar style={theme.isDark ? "light" : "dark"} />
-        <TabNav />
+        <Suspense fallback={<LoadingScreen />}>
+          <TabNav />
+        </Suspense>
       </ErrorBoundary>
     </ActivityProvider>
   );

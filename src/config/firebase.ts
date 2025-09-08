@@ -6,6 +6,7 @@ import {
   getReactNativePersistence,
   browserLocalPersistence,
   inMemoryPersistence,
+  setPersistence,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
@@ -13,20 +14,24 @@ import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Use env vars. In Expo, public vars must be prefixed with EXPO_PUBLIC_
 const firebaseConfig = {
-  apiKey: "AIzaSyBfFe-Pb2Ri-8SF4Qs7gZLERY0ueKBFOVE",
-  authDomain: "vitalpath2.firebaseapp.com",
-  projectId: "vitalpath2",
-  storageBucket: "vitalpath2.appspot.com",
-  messagingSenderId: "863487646204",
-  appId: "1:863487646204:web:b29a64500fd663af82ba79",
-  measurementId: "G-ZLWKSDY5JS",
-};
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+} as const;
 
 const app = initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
+export const storage = getStorage(app);
+export const functions = getFunctions(app, "us-central1");
 
+// Cross‑platform auth persistence
 export const auth =
   Platform.OS === "web"
     ? getAuth(app)
@@ -34,19 +39,14 @@ export const auth =
         persistence: getReactNativePersistence(AsyncStorage),
       });
 
-if (typeof window !== "undefined" && Platform.OS === "web") {
-  import("firebase/auth").then(({ setPersistence }) => {
-    setPersistence(auth, browserLocalPersistence).catch(async () => {
-      const { setPersistence: setP } = await import("firebase/auth");
-      await setP(auth, inMemoryPersistence);
-    });
+// Web persistence setup
+if (Platform.OS === "web") {
+  setPersistence(auth, browserLocalPersistence).catch(async () => {
+    await setPersistence(auth, inMemoryPersistence);
   });
 }
 
-export const storage = getStorage(app, `gs://${firebaseConfig.storageBucket}`);
-export const functions = getFunctions(app, "us-central1");
-
-// Emulator only if explicitly enabled
+// Optional: emulator for functions (dev only)
 const USE_EMULATOR =
   __DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR === "1";
 const EMU_HOST =

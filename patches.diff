@@ -1,0 +1,2045 @@
+diff --git a/app/index.tsx b/app/index.tsx
+--- a/app/index.tsx
++++ b/app/index.tsx
+@@ -1,16 +1,19 @@
+ import "react-native-gesture-handler";
+ import React, { useEffect, Suspense } from "react";
+ import {
+   Platform,
+   View,
+   Text,
+   ActivityIndicator,
+   TextInput,
+ } from "react-native";
+ import { NavigationContainer } from "@react-navigation/native";
+ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+ import { createNativeStackNavigator } from "@react-navigation/native-stack";
+ import { BlurView } from "expo-blur";
+ import { Ionicons } from "@expo/vector-icons";
+ import { SafeAreaProvider } from "react-native-safe-area-context";
+ import { GestureHandlerRootView } from "react-native-gesture-handler";
+ import { StatusBar } from "expo-status-bar";
+ 
+ import { AuthProvider, useAuth } from "../src/context/AuthContext";
+ import { ActivityProvider } from "../src/context/ActivityContext";
+ import { ThemeProvider, useTheme } from "../src/ui/ThemeProvider";
+ import { ToastProvider } from "../src/ui/components/Toast";
+ import ErrorBoundary from "../src/components/ErrorBoundary";
+ import { configureForegroundNotifications } from "../src/utils/notifications";
+ 
+ // Lazy screens (top-level to avoid re-creating lazies on re-render)
+ const AuthScreen = React.lazy(() => import("./AuthScreen"));
+ const ProfileSetupScreen = React.lazy(() => import("./ProfileSetupScreen"));
+ const DietaryScreen = React.lazy(() => import("./DietaryScreen"));
+ const AssistanceScreen = React.lazy(() => import("./AssistanceScreen"));
+ const HistoryScreen = React.lazy(() => import("./HistoryScreen"));
+-const ScanFoodScreen = React.lazy(() => import("./ScanFoodScreen"));
++const ScanFoodScreen = React.lazy(() => import("./ScanFoodScreen"));
+ const ProgramsScreen = React.lazy(() => import("./ProgramsScreen"));
+ const RoutineBuilderScreen = React.lazy(() => import("./RoutineBuilderScreen"));
+ const WorkoutSessionScreen = React.lazy(() => import("./WorkoutSessionScreen"));
+ const WorkoutsHomeScreen = React.lazy(() => import("./WorkoutsHomeScreen"));
+ const RoutinesScreen = React.lazy(() => import("./RoutinesScreen"));
+ const MealPlannerScreen = React.lazy(() => import("./MealPlannerScreen"));
+ const ProfileScreen = React.lazy(() => import("./ProfileScreen"));
+ const SettingsScreen = React.lazy(() => import("./SettingsScreen"));
+ const LibraryScreen = React.lazy(() => import("./LibraryScreen"));
+ const EditProfileScreen = React.lazy(() => import("./EditProfileScreen"));
+ const EditGoalsScreen = React.lazy(() => import("./EditGoalsScreen"));
+ const StrengthStatsScreen = React.lazy(() => import("./StrengthStatsScreen"));
+ const WorkoutTemplatesScreen = React.lazy(
+   () => import("./WorkoutTemplatesScreen")
+ );
+ const FoodSearchScreen = React.lazy(() => import("./FoodSearchScreen"));
+ const FoodAddScreen = React.lazy(() => import("./FoodAddScreen"));
+ const MealsDiaryScreen = React.lazy(() => import("./MealsDiaryScreen"));
+ const RecipesScreen = React.lazy(() => import("./RecipesScreen"));
+ const RecipeImportScreen = React.lazy(() => import("./RecipeImportScreen"));
+ const PantryScreen = React.lazy(() => import("./PantryScreen"));
+ const PantryMealIdeasScreen = React.lazy(
+   () => import("./PantryMealIdeasScreen")
+ );
+ const WeeklyCheckInScreen = React.lazy(() => import("./WeeklyCheckInScreen"));
+ const WeeklyReportScreen = React.lazy(() => import("./WeeklyReportScreen"));
+ 
+ export type RootTabParamList = {
+   Home: undefined;
+-  Scan: undefined;
+   Plan: undefined;
+   Workouts: undefined;
+   Coach: undefined;
+   Profile: undefined;
+ };
+ 
+ const Tab = createBottomTabNavigator<RootTabParamList>();
+ const Stack = createNativeStackNavigator();
+ 
+ function applyAccessibilityDefaults() {
+   try {
+     (Text as any).defaultProps = (Text as any).defaultProps || {};
+     (Text as any).defaultProps.maxFontSizeMultiplier = 1.3;
+     (TextInput as any).defaultProps = (TextInput as any).defaultProps || {};
+     (TextInput as any).defaultProps.maxFontSizeMultiplier = 1.3;
+   } catch (e) {
+     // no-op
+   }
+ }
+ 
+ const LoadingScreen = React.memo(() => {
+   const { theme } = useTheme();
+   return (
+     <View
+       style={{
+         flex: 1,
+         justifyContent: "center",
+         alignItems: "center",
+         backgroundColor: theme.colors.appBg,
+       }}
+     >
+       <ActivityIndicator size="large" color={theme.colors.primary} />
+       <Text
+         style={{
+           marginTop: 16,
+           color: theme.colors.text,
+           fontSize: 16,
+         }}
+       >
+         Loading...
+       </Text>
+     </View>
+   );
+ });
+ 
+ function PlanStack() {
+   const { theme } = useTheme();
+   return (
+     <Stack.Navigator
+       screenOptions={({ navigation, route }) => ({
+         headerStyle: { backgroundColor: theme.colors.surface },
+         headerShadowVisible: false,
+         headerTintColor: theme.colors.text,
+         contentStyle: { backgroundColor: theme.colors.appBg },
+         headerLeft: () => {
+           const origin = (route.params as any)?.origin;
+           if (origin === "home") {
+             return (
+               <Ionicons
+                 name="chevron-back"
+                 size={24}
+                 color={theme.colors.text}
+                 onPress={() => navigation.navigate("Home" as never)}
+                 style={{ marginRight: 8 }}
+               />
+             );
+           }
+           return undefined;
+         },
+       })}
+     >
+       <Stack.Screen
+         name="Planner"
+         component={MealPlannerScreen}
+         options={{ title: "Plan" }}
+       />
+       <Stack.Screen
+         name="FoodSearch"
+         component={FoodSearchScreen}
+         options={{ title: "Search Food" }}
+       />
+       <Stack.Screen
+         name="FoodAdd"
+         component={FoodAddScreen}
+         options={{ title: "Add Food" }}
+       />
+       <Stack.Screen
+         name="MealsDiary"
+         component={MealsDiaryScreen}
+         options={{ title: "Today's Meals" }}
+       />
+       <Stack.Screen
+         name="Recipes"
+         component={RecipesScreen}
+         options={{ title: "My Recipes" }}
+       />
+       <Stack.Screen
+         name="RecipeImport"
+         component={RecipeImportScreen}
+         options={{ title: "Import Recipe" }}
+       />
+       <Stack.Screen
+         name="Pantry"
+         component={PantryScreen}
+         options={{ title: "Pantry" }}
+       />
+       <Stack.Screen
+         name="PantryMealIdeas"
+         component={PantryMealIdeasScreen}
+         options={{ title: "Pantry → Meals" }}
+       />
+       <Stack.Screen
+         name="WeeklyCheckIn"
+         component={WeeklyCheckInScreen}
+         options={{ title: "Weekly Check‑in" }}
+       />
+       <Stack.Screen
+         name="WeeklyReport"
+         component={WeeklyReportScreen}
+         options={{ title: "AI Weekly Report" }}
+       />
+       <Stack.Screen
+         name="History"
+         component={HistoryScreen}
+         options={{ title: "History" }}
+       />
+-      <Stack.Screen
+-        name="Library"
+-        component={LibraryScreen}
+-        options={{ title: "Meal Library" }}
+-      />
++      <Stack.Screen
++        name="Scan"
++        component={ScanFoodScreen}
++        options={{ title: "Scan" }}
++      />
+     </Stack.Navigator>
+   );
+ }
+ 
+ function WorkoutsStack() {
+   const { theme } = useTheme();
+   return (
+     <Stack.Navigator
+       screenOptions={{
+         headerStyle: { backgroundColor: theme.colors.surface },
+         headerShadowVisible: false,
+         headerTintColor: theme.colors.text,
+         contentStyle: { backgroundColor: theme.colors.appBg },
+       }}
+     >
+       <Stack.Screen
+         name="WorkoutsHome"
+         component={WorkoutsHomeScreen}
+         options={{ title: "Workouts" }}
+       />
+       <Stack.Screen
+         name="Programs"
+         component={ProgramsScreen}
+         options={{ title: "Browse Exercises" }}
+       />
+       <Stack.Screen
+         name="Routines"
+         component={RoutinesScreen}
+         options={{ title: "My Routines" }}
+       />
+       <Stack.Screen
+         name="RoutineBuilder"
+         component={RoutineBuilderScreen}
+         options={{ title: "Workout Builder" }}
+       />
+       <Stack.Screen
+         name="WorkoutSession"
+         component={WorkoutSessionScreen}
+         options={{ title: "Session" }}
+       />
+       <Stack.Screen
+         name="StrengthStats"
+         component={StrengthStatsScreen}
+         options={{ title: "Strength Stats" }}
+       />
+       <Stack.Screen
+         name="WorkoutTemplates"
+         component={WorkoutTemplatesScreen}
+         options={{ title: "Templates" }}
+       />
+     </Stack.Navigator>
+   );
+ }
+ 
+ function CoachStack() {
+   const { theme } = useTheme();
+   return (
+     <Stack.Navigator
+       screenOptions={{
+         headerStyle: { backgroundColor: theme.colors.surface },
+         headerShadowVisible: false,
+         headerTintColor: theme.colors.text,
+         contentStyle: { backgroundColor: theme.colors.appBg },
+       }}
+     >
+       <Stack.Screen
+         name="Assistance"
+         component={AssistanceScreen}
+         options={{ title: "Coach" }}
+       />
+     </Stack.Navigator>
+   );
+ }
+ 
+ function ProfileStack() {
+   const { theme } = useTheme();
+   return (
+     <Stack.Navigator
+       screenOptions={{
+         headerStyle: { backgroundColor: theme.colors.surface },
+         headerShadowVisible: false,
+         headerTintColor: theme.colors.text,
+         contentStyle: { backgroundColor: theme.colors.appBg },
+       }}
+     >
+       <Stack.Screen
+         name="ProfileHome"
+         component={ProfileScreen}
+         options={{ title: "Profile" }}
+       />
+       <Stack.Screen
+         name="Settings"
+         component={SettingsScreen}
+         options={{ title: "Settings" }}
+       />
+       <Stack.Screen
+         name="Setup"
+         component={ProfileSetupScreen}
+         options={{ title: "Complete Profile" }}
+       />
+       <Stack.Screen
+         name="EditProfile"
+         component={EditProfileScreen}
+         options={{ title: "Edit Profile" }}
+       />
+       <Stack.Screen
+         name="EditGoals"
+         component={EditGoalsScreen}
+         options={{ title: "Edit Goals" }}
+       />
+     </Stack.Navigator>
+   );
+ }
+ 
+ function TabNav() {
+   const { theme, navTheme } = useTheme();
+ 
+   const iconFor = (route: keyof RootTabParamList, focused: boolean) => {
+     switch (route) {
+       case "Home":
+         return focused ? "home" : "home-outline";
+-      case "Scan":
+-        return focused ? "scan" : "scan-outline";
+       case "Plan":
+         return focused ? "calendar" : "calendar-outline";
+       case "Workouts":
+         return focused ? "barbell" : "barbell-outline";
+       case "Coach":
+         return focused ? "chatbubble" : "chatbubble-outline";
+       case "Profile":
+         return focused ? "person" : "person-outline";
+       default:
+         return "ellipse-outline";
+     }
+   };
+ 
+   const TabBarBackground = () =>
+     Platform.OS === "web" ? (
+       <View
+         style={{
+           flex: 1,
+           backgroundColor: theme.colors.surface,
+           opacity: 0.92,
+         }}
+       />
+     ) : (
+       <BlurView
+         intensity={35}
+         tint={theme.isDark ? "dark" : "light"}
+         style={{ flex: 1 }}
+       />
+     );
+ 
+   return (
+     <NavigationContainer theme={navTheme}>
+       <Tab.Navigator
+         initialRouteName="Home"
+         screenOptions={({ route }) => ({
+           tabBarIcon: ({ focused, color, size }) => (
+             <Ionicons
+               name={iconFor(route.name as keyof RootTabParamList, focused)}
+               size={size}
+               color={color}
+             />
+           ),
+           tabBarActiveTintColor: theme.colors.primary,
+           tabBarInactiveTintColor: theme.colors.textMuted,
+           headerShown: false,
+           tabBarStyle: {
+             height: 64,
+             borderTopWidth: Platform.OS === "android" ? 0.5 : 0,
+             borderTopColor: theme.colors.border,
+             backgroundColor: "transparent",
+           },
+           tabBarBackground: TabBarBackground,
+           tabBarLabelStyle: {
+             fontSize: 12,
+             paddingBottom: 6,
+           },
+           tabBarHideOnKeyboard: true,
+         })}
+       >
+         <Tab.Screen name="Home" component={DietaryScreen} options={{ title: "Home" }} />
+-        <Tab.Screen name="Scan" component={ScanFoodScreen} options={{ title: "Scan" }} />
+         <Tab.Screen name="Plan" component={PlanStack} options={{ title: "Plan" }} />
+         <Tab.Screen
+           name="Workouts"
+           component={WorkoutsStack}
+           options={{ title: "Workouts" }}
+         />
+         <Tab.Screen name="Coach" component={CoachStack} options={{ title: "Coach" }} />
+         <Tab.Screen
+           name="Profile"
+           component={ProfileStack}
+           options={{ title: "Profile" }}
+         />
+       </Tab.Navigator>
+     </NavigationContainer>
+   );
+ }
+ 
+ function AppShell() {
+-  const { user } = useAuth();
++  const { user, userProfile, loading } = useAuth();
+   const { theme } = useTheme();
+ 
+   useEffect(() => {
+     applyAccessibilityDefaults();
+     configureForegroundNotifications();
+   }, []);
+ 
+   if (!user) {
+     return (
+       <Suspense fallback={<LoadingScreen />}>
+         <AuthScreen />
+       </Suspense>
+     );
+   }
+ 
++  // Route incomplete profiles to Setup
++  const incomplete =
++    !userProfile ||
++    !userProfile.name ||
++    !userProfile.height ||
++    !userProfile.weight ||
++    !userProfile.goal;
++  if (loading) return <LoadingScreen />;
++  if (incomplete) {
++    return (
++      <Suspense fallback={<LoadingScreen />}>
++        <ProfileSetupScreen />
++      </Suspense>
++    );
++  }
++
+   return (
+     <ActivityProvider>
+       <ErrorBoundary>
+         <StatusBar style={theme.isDark ? "light" : "dark"} />
+         <Suspense fallback={<LoadingScreen />}>
+           <TabNav />
+         </Suspense>
+       </ErrorBoundary>
+     </ActivityProvider>
+   );
+ }
+ 
+ export default function Index() {
+   return (
+     <GestureHandlerRootView style={{ flex: 1 }}>
+       <SafeAreaProvider>
+         <ThemeProvider>
+           <ToastProvider>
+             <AuthProvider>
+               <AppShell />
+             </AuthProvider>
+           </ToastProvider>
+         </ThemeProvider>
+       </SafeAreaProvider>
+     </GestureHandlerRootView>
+   );
+ }
+diff --git a/app/AuthScreen.tsx b/app/AuthScreen.tsx
+--- a/app/AuthScreen.tsx
++++ b/app/AuthScreen.tsx
+@@ -1,20 +1,22 @@
+ import React, { useMemo, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   TextInput,
+   TouchableOpacity,
+   Alert,
+   KeyboardAvoidingView,
+   Platform,
+   ScrollView,
++  Image,
+ } from "react-native";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import { fonts } from "../src/constants/fonts";
+ import { useAuth } from "../src/context/AuthContext";
+ import { Ionicons } from "@expo/vector-icons";
+ 
+ function isValidEmail(email: string) {
+   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+ }
+ 
+ function mapAuthError(e: any): string {
+   const code = e?.code || e?.message || "";
+   if (code.includes("auth/invalid-email")) return "Invalid email address.";
+   if (code.includes("auth/user-not-found"))
+     return "No account found with this email.";
+   if (code.includes("auth/wrong-password")) return "Incorrect password.";
++  if (code.includes("auth/user-disabled")) return "This account is disabled.";
++  if (code.includes("auth/invalid-credential"))
++    return "Email or password is incorrect.";
+   if (code.includes("auth/too-many-requests"))
+     return "Too many attempts. Try again later.";
+   if (code.includes("auth/email-already-in-use"))
+     return "Email already in use.";
+   if (code.includes("auth/weak-password")) return "Password is too weak.";
+   return "Authentication failed. Please try again.";
+ }
+ 
+ export default function AuthScreen() {
+   const { theme } = useTheme();
+   const { signIn, signUp, resetPassword } = useAuth();
+ 
+   const [mode, setMode] = useState<"signin" | "signup">("signin");
+   const [email, setEmail] = useState("");
+   const [pwd, setPwd] = useState("");
+   const [pwd2, setPwd2] = useState("");
+   const [busy, setBusy] = useState(false);
+   const [showPwd, setShowPwd] = useState(false);
+   const [showPwd2, setShowPwd2] = useState(false);
+ 
+   const canSubmit = useMemo(() => {
+     if (!isValidEmail(email)) return false;
+     if (mode === "signin") return !!pwd;
+     return pwd.length >= 6 && pwd === pwd2;
+   }, [email, mode, pwd, pwd2]);
+ 
+   const onSubmit = async () => {
+     const e = email.trim();
+     if (!isValidEmail(e)) {
+       Alert.alert("Email", "Please enter a valid email address.");
+       return;
+     }
+     if (mode === "signup") {
+       if (pwd.length < 6) {
+         Alert.alert("Password", "Use at least 6 characters.");
+         return;
+       }
+       if (pwd !== pwd2) {
+         Alert.alert("Password", "Passwords do not match.");
+         return;
+       }
+     } else {
+       if (!pwd) {
+         Alert.alert("Password", "Please enter your password.");
+         return;
+       }
+     }
+ 
+     setBusy(true);
+     try {
+       if (mode === "signin") {
+         await signIn(e, pwd);
+       } else {
+         await signUp(e, pwd);
+-        Alert.alert("Welcome", "Account created. You are signed in.");
++        Alert.alert("Welcome", "Account created. Let's complete your profile.");
+       }
+     } catch (err: any) {
+       Alert.alert("Authentication", mapAuthError(err));
+     } finally {
+       setBusy(false);
+     }
+   };
+ 
+   const onForgot = async () => {
+     const e = email.trim();
+     if (!isValidEmail(e)) {
+       Alert.alert("Email", "Enter your email to reset your password.");
+       return;
+     }
+     try {
+       await resetPassword(e);
+-      Alert.alert("Password reset", "We sent a reset link to your email.");
++      Alert.alert(
++        "Password reset",
++        "We sent a reset link to your email. Check Spam if you don't see it."
++      );
+     } catch (err: any) {
+       Alert.alert("Reset", mapAuthError(err));
+     }
+   };
+ 
+   return (
+     <KeyboardAvoidingView
+       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+       behavior={Platform.OS === "ios" ? "padding" : undefined}
+     >
+       <ScrollView
+         contentContainerStyle={{
+           padding: 16,
+           paddingTop: 32,
+           paddingBottom: 24,
+         }}
+         keyboardShouldPersistTaps="handled"
+         showsVerticalScrollIndicator={false}
+       >
+-        <Text style={[styles.title, { color: theme.colors.text }]}>
+-          VitalPath
+-        </Text>
++        <View style={{ alignItems: "center", marginBottom: 8 }}>
++          <Image
++            source={require("../assets/images/icon.png")}
++            style={{ width: 72, height: 72, borderRadius: 16, marginBottom: 8 }}
++          />
++          <Text style={[styles.title, { color: theme.colors.text }]}>
++            VitalPath
++          </Text>
++        </View>
+         <Text style={{ color: theme.colors.textMuted, marginBottom: 12 }}>
+           {mode === "signin" ? "Sign in to continue" : "Create your account"}
+         </Text>
+ 
+         <View
+           style={[
+             styles.card,
+             {
+               backgroundColor: theme.colors.surface,
+               borderColor: theme.colors.border,
+             },
+           ]}
+         >
+           <Text style={[styles.label, { color: theme.colors.text }]}>Email</Text>
+           <TextInput
+             style={[
+               styles.input,
+               {
+                 backgroundColor: theme.colors.surface2,
+                 borderColor: theme.colors.border,
+                 color: theme.colors.text,
+               },
+             ]}
+             autoCapitalize="none"
+             keyboardType="email-address"
+             autoComplete="email"
+             textContentType="username"
+             value={email}
+             onChangeText={setEmail}
+             placeholder="you@example.com"
+             placeholderTextColor={theme.colors.textMuted}
+           />
+ 
+           <Text style={[styles.label, { color: theme.colors.text }]}>
+             Password
+           </Text>
+           <View style={{ position: "relative" }}>
+             <TextInput
+               style={[
+                 styles.input,
+                 {
+                   backgroundColor: theme.colors.surface2,
+                   borderColor: theme.colors.border,
+                   color: theme.colors.text,
+                   paddingRight: 44,
+                 },
+               ]}
+               secureTextEntry={!showPwd}
+               value={pwd}
+               onChangeText={setPwd}
+               placeholder="••••••••"
+               placeholderTextColor={theme.colors.textMuted}
+               autoComplete={mode === "signin" ? "password" : "new-password"}
+               textContentType={mode === "signin" ? "password" : "newPassword"}
+             />
+             <TouchableOpacity
+               onPress={() => setShowPwd((s) => !s)}
+               style={styles.eye}
+               accessibilityLabel={showPwd ? "Hide password" : "Show password"}
+             >
+               <Ionicons
+                 name={showPwd ? "eye-off-outline" : "eye-outline"}
+                 size={20}
+                 color={theme.colors.textMuted}
+               />
+             </TouchableOpacity>
+           </View>
+ 
+           {mode === "signup" && (
+             <>
+               <Text style={[styles.label, { color: theme.colors.text }]}>
+                 Confirm password
+               </Text>
+               <View style={{ position: "relative" }}>
+                 <TextInput
+                   style={[
+                     styles.input,
+                     {
+                       backgroundColor: theme.colors.surface2,
+                       borderColor: theme.colors.border,
+                       color: theme.colors.text,
+                       paddingRight: 44,
+                     },
+                   ]}
+                   secureTextEntry={!showPwd2}
+                   value={pwd2}
+                   onChangeText={setPwd2}
+                   placeholder="••••••••"
+                   placeholderTextColor={theme.colors.textMuted}
+                   autoComplete="new-password"
+                   textContentType="newPassword"
+                 />
+                 <TouchableOpacity
+                   onPress={() => setShowPwd2((s) => !s)}
+                   style={styles.eye}
+                   accessibilityLabel={showPwd2 ? "Hide password" : "Show password"}
+                 >
+                   <Ionicons
+                     name={showPwd2 ? "eye-off-outline" : "eye-outline"}
+                     size={20}
+                     color={theme.colors.textMuted}
+                   />
+                 </TouchableOpacity>
+               </View>
+             </>
+           )}
+ 
+           <TouchableOpacity
+             onPress={onSubmit}
+             disabled={busy || !canSubmit}
+             style={[
+               styles.btn,
+               {
+                 backgroundColor: theme.colors.primary,
+                 borderColor: theme.colors.primary,
+                 marginTop: 10,
+                 opacity: busy || !canSubmit ? 0.7 : 1,
+               },
+             ]}
+           >
+             <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+               {busy
+                 ? "Please wait…"
+                 : mode === "signin"
+                 ? "Sign in"
+                 : "Create account"}
+             </Text>
+           </TouchableOpacity>
+ 
+           {mode === "signin" && (
+             <TouchableOpacity
+               onPress={onForgot}
+               style={{ marginTop: 10, alignSelf: "flex-start" }}
+             >
+               <Text
+                 style={{
+                   color: theme.colors.primary,
+                   fontFamily: fonts.semiBold,
+                 }}
+               >
+                 Forgot password?
+               </Text>
+             </TouchableOpacity>
+           )}
+         </View>
+ 
+         <View style={{ flexDirection: "row", gap: 6, marginTop: 12 }}>
+           <Text style={{ color: theme.colors.textMuted }}>
+             {mode === "signin"
+               ? "Don't have an account?"
+               : "Already have an account?"}
+           </Text>
+           <TouchableOpacity
+             onPress={() => setMode(mode === "signin" ? "signup" : "signin")}
+           >
+             <Text
+               style={{
+                 color: theme.colors.primary,
+                 fontFamily: fonts.semiBold,
+               }}
+             >
+               {mode === "signin" ? "Sign up" : "Sign in"}
+             </Text>
+           </TouchableOpacity>
+         </View>
+       </ScrollView>
+     </KeyboardAvoidingView>
+   );
+ }
+ 
+ const styles = StyleSheet.create({
+   title: { fontFamily: fonts.bold, fontSize: 28, marginBottom: 4 },
+   card: { borderRadius: 12, borderWidth: 1, padding: 12 },
+   label: { fontFamily: fonts.semiBold, marginTop: 6, marginBottom: 6 },
+   input: {
+     borderRadius: 10,
+     borderWidth: 1,
+     padding: 12,
+     fontFamily: fonts.regular,
+   },
+   btn: {
+     borderRadius: 10,
+     borderWidth: 1,
+     paddingVertical: 12,
+     alignItems: "center",
+   },
+   eye: {
+     position: "absolute",
+     right: 10,
+     top: 10,
+     padding: 6,
+   },
+ });
+diff --git a/app/ProfileSetupScreen.tsx b/app/ProfileSetupScreen.tsx
+--- a/app/ProfileSetupScreen.tsx
++++ b/app/ProfileSetupScreen.tsx
+@@ -1,24 +1,26 @@
+ import React, { useMemo, useState, useEffect } from "react";
+ import {
+   View,
+   Text,
+   TextInput,
+   TouchableOpacity,
+   StyleSheet,
+   ScrollView,
+   SafeAreaView,
+   Alert,
+   Platform,
+   KeyboardAvoidingView,
+ } from "react-native";
+ import { httpsCallable } from "firebase/functions";
+ import { doc, setDoc } from "firebase/firestore";
+ import { useRoute } from "@react-navigation/native";
+ 
+ import { useAuth } from "../src/context/AuthContext";
+ import { fonts } from "../src/constants/fonts";
+ import { db, functions } from "../src/config/firebase";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import Card from "../src/ui/components/Card";
+ import Select from "../src/ui/components/Select";
+ 
+ const GOALS = [
+   { label: "Maintain Weight", value: "maintain" },
+   { label: "Lose Weight", value: "lose_weight" },
+   { label: "Gain Weight", value: "gain_weight" },
+   { label: "Gain Muscle", value: "gain_muscle" },
+   { label: "Lose Fat", value: "lose_fat" },
+ ] as const;
+ 
++const FITNESS_GOALS = [
++  { label: "Maintain overall health", value: "general_health" },
++  { label: "Become athletic", value: "athletic" },
++  { label: "Improve endurance", value: "endurance" },
++  { label: "Build strength", value: "strength_focus" },
++  { label: "Increase flexibility/mobility", value: "mobility" },
++];
++
+ const ACTIVITIES = ["sedentary", "light", "moderate", "active", "very_active"] as const;
+ 
+ const BODY_TYPES = [
+   { label: "Ectomorph (lean, hard to gain)", value: "ectomorph" },
+   { label: "Mesomorph (athletic)", value: "mesomorph" },
+   { label: "Endomorph (easier to gain)", value: "endomorph" },
+   { label: "Other/Not sure", value: "other" },
+ ] as const;
+ 
+ type GoalType = "lose_weight" | "gain_weight" | "maintain" | "gain_muscle" | "lose_fat";
+ type GenderType = "male" | "female";
+ type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+ type BodyType = "ectomorph" | "mesomorph" | "endomorph" | "other";
++type FitnessGoal =
++  | "general_health"
++  | "athletic"
++  | "endurance"
++  | "strength_focus"
++  | "mobility";
+ 
+ const activityFactorMap: Record<ActivityLevel, number> = {
+   sedentary: 1.2,
+   light: 1.375,
+   moderate: 1.55,
+   active: 1.725,
+   very_active: 1.9,
+ };
+ 
+ function adjustByBodyType(baseCalories: number, goal: GoalType, bodyType: BodyType): number {
+   if (bodyType === "ectomorph" && (goal === "gain_weight" || goal === "gain_muscle")) {
+     return Math.round(baseCalories * 1.07);
+   }
+   if (bodyType === "endomorph" && (goal === "lose_weight" || goal === "lose_fat")) {
+     return Math.round(baseCalories * 0.93);
+   }
+   return Math.round(baseCalories);
+ }
+ 
+ function estimateCaloriesAndMacros(
+   weight: number,
+   height: number,
+   age: number,
+   gender: GenderType,
+   goal: GoalType,
+   activityLevel: ActivityLevel,
+   bodyType: BodyType
+ ) {
+   const bmr =
+     gender === "male"
+       ? 10 * weight + 6.25 * (height * 100) - 5 * age + 5
+       : 10 * weight + 6.25 * (height * 100) - 5 * age - 161;
+ 
+   const activityFactor = activityFactorMap[activityLevel] ?? 1.55;
+   let calories = bmr * activityFactor;
+ 
+   switch (goal) {
+     case "lose_weight":
+     case "lose_fat":
+       calories *= 0.8;
+       break;
+     case "gain_weight":
+     case "gain_muscle":
+       calories *= 1.2;
+       break;
+     default:
+       break;
+   }
+ 
+   calories = adjustByBodyType(calories, goal, bodyType);
+ 
+   let proteinRatio = 0.25;
+   let carbRatio = 0.45;
+   let fatRatio = 0.3;
+ 
+   if (goal === "gain_muscle" || goal === "lose_fat") {
+     proteinRatio = 0.35;
+     carbRatio = 0.35;
+     fatRatio = 0.3;
+   } else if (goal === "lose_weight") {
+     proteinRatio = 0.3;
+     carbRatio = 0.35;
+     fatRatio = 0.35;
+   }
+ 
+   if (bodyType === "ectomorph") {
+     carbRatio += 0.05;
+     fatRatio -= 0.05;
+   } else if (bodyType === "endomorph") {
+     proteinRatio += 0.05;
+     carbRatio -= 0.05;
+   }
+ 
+   const protein = (calories * proteinRatio) / 4;
+   const carbs = (calories * carbRatio) / 4;
+   const fat = (calories * fatRatio) / 9;
+ 
+   return {
+     calories: Math.round(calories),
+     macros: {
+       protein: Math.round(protein),
+       carbs: Math.round(carbs),
+       fat: Math.round(fat),
+     },
+   };
+ }
+ 
+ export default function ProfileSetupScreen() {
+   const route = useRoute<any>();
+   const initialStepParam = route.params?.initialStep as number | undefined;
+ 
+   const { theme } = useTheme();
+   const { updateUserProfile, user, userProfile } = useAuth();
+ 
+   const [name, setName] = useState(userProfile?.name || "");
+   const [age, setAge] = useState(userProfile?.age != null && userProfile.age > 0 ? String(userProfile.age) : "");
+   const [weight, setWeight] = useState(userProfile?.weight ? String(userProfile.weight) : "");
+   const [height, setHeight] = useState(userProfile?.height ? String(userProfile.height) : "");
+   const [gender, setGender] = useState<GenderType>(userProfile?.gender || "male");
+   const [goal, setGoal] = useState<GoalType>(userProfile?.goal || "maintain");
++  const [fitnessGoal, setFitnessGoal] = useState<FitnessGoal>((userProfile as any)?.fitnessGoal || "general_health");
+   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(userProfile?.activityLevel || "moderate");
+   const [bodyType, setBodyType] = useState<BodyType>(userProfile?.bodyType || "other");
+   const [country, setCountry] = useState(userProfile?.country || "");
+   const [timelineWeeks, setTimelineWeeks] = useState(userProfile?.targetTimelineWeeks || 12);
+   const [dietaryPreferences, setDietaryPreferences] = useState((userProfile?.dietaryPreferences || []).join(", "));
+   const [allergies, setAllergies] = useState((userProfile?.allergies || []).join(", "));
+   const [loading, setLoading] = useState(false);
+   const [step, setStep] = useState(0);
+ 
++  const COUNTRIES = useMemo(
++    () =>
++      [
++        "Ghana",
++        "Nigeria",
++        "Kenya",
++        "South Africa",
++        "United States",
++        "United Kingdom",
++        "Canada",
++        "Germany",
++        "France",
++        "India",
++        "Australia",
++        "Brazil",
++        "Mexico",
++        "China",
++        "Japan",
++      ].map((c) => ({ label: c, value: c })),
++    []
++  );
++
+   useEffect(() => {
+     if (typeof initialStepParam === "number") {
+       setStep(Math.max(0, Math.min(4, initialStepParam)));
+     }
+   }, [initialStepParam]);
+@@ -176,14 +178,24 @@
+           {step === 0 && (
+             <Card style={{ marginTop: 12 }}>
+               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Basics</Text>
+               <LabeledInput label="Name *" value={name} onChangeText={setName} placeholder="Enter your name" />
+               <LabeledInput label="Age *" value={age} onChangeText={setAge} placeholder="Enter your age" keyboardType="numeric" />
+               <Select
+                 label="Gender *"
+                 value={gender}
+                 items={[
+                   { label: "Male", value: "male" },
+                   { label: "Female", value: "female" },
+                 ]}
+                 onChange={(v) => setGender(v)}
+               />
+-              <LabeledInput label="Country *" value={country} onChangeText={setCountry} placeholder="e.g., Ghana" />
++              <Select
++                label="Country *"
++                value={country || "Ghana"}
++                items={COUNTRIES}
++                onChange={(v) => setCountry(String(v))}
++                placeholder="Select country"
++              />
+             </Card>
+           )}
+ 
+           {step === 1 && (
+             <Card style={{ marginTop: 12 }}>
+@@ -209,16 +221,37 @@
+           {step === 2 && (
+             <Card style={{ marginTop: 12 }}>
+               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Goals</Text>
++              <Select
++                label="Fitness Goal"
++                value={fitnessGoal}
++                items={FITNESS_GOALS.map((g) => ({ label: g.label, value: g.value as any }))}
++                onChange={(v) => setFitnessGoal(v as FitnessGoal)}
++              />
+               <Select
+                 label="Primary Goal"
+                 value={goal}
+                 items={GOALS.map((g) => ({ label: g.label, value: g.value }))}
+                 onChange={(v) => setGoal(v)}
+               />
+               <Select
+                 label="Activity Level"
+                 value={activityLevel}
+-                items={ACTIVITIES.map((a) => ({
+-                  label: a.replace("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()),
+-                  value: a as ActivityLevel,
+-                }))}
++                items={ACTIVITIES.map((a) => {
++                  const label =
++                    a === "sedentary"
++                      ? "Sedentary — desk job, little exercise"
++                      : a === "light"
++                      ? "Light — 1–2 light sessions/wk"
++                      : a === "moderate"
++                      ? "Moderate — 3–4 sessions/wk"
++                      : a === "active"
++                      ? "Active — 5–6 sessions/wk"
++                      : "Very Active — daily training/manual work";
++                  return { label, value: a as ActivityLevel };
++                })}
+                 onChange={(v) => setActivityLevel(v)}
+               />
+               <Select
+                 label="Realistic Timeline (weeks)"
+                 value={timelineWeeks}
+                 items={recommendedTimelines.map((w) => ({ label: String(w), value: w }))}
+                 onChange={(v) => setTimelineWeeks(Number(v))}
+               />
+             </Card>
+           )}
+@@ -320,6 +353,7 @@
+         gender,
+         goal,
++        // @ts-ignore
++        fitnessGoal,
+         activityLevel,
+         bodyType,
+         targetTimelineWeeks: timelineWeeks,
+         country: country.trim(),
+         dietaryPreferences: dietaryPreferences
+@@ -343,6 +377,7 @@
+           height: heightN,
+           gender,
+           goal,
++          fitnessGoal,
+           activityLevel,
+           bodyType,
+           targetTimelineWeeks: timelineWeeks,
+           country: country.trim(),
+           dietaryPreferences: dietaryPreferences
+diff --git a/app/DietaryScreen.tsx b/app/DietaryScreen.tsx
+--- a/app/DietaryScreen.tsx
++++ b/app/DietaryScreen.tsx
+@@ -1,14 +1,16 @@
+ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   TouchableOpacity,
+   ScrollView,
+   ActivityIndicator,
+   TextInput,
+ } from "react-native";
+ import { Ionicons } from "@expo/vector-icons";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import { fonts } from "../src/constants/fonts";
+ import { useActivity } from "../src/context/ActivityContext";
+ import { useAuth } from "../src/context/AuthContext";
+ import { useNavigation } from "@react-navigation/native";
+ import AsyncStorage from "@react-native-async-storage/async-storage";
+ import { computeNutritionAlerts } from "../src/utils/nutritionAlerts";
+-import { getHealthAssistantResponse } from "../src/services/healthAI";
++import { getHealthAssistantResponse, getDailyMealIdeasAI } from "../src/services/healthAI";
+ 
+ type WeekRow = {
+   date: string;
+@@ -88,10 +90,6 @@
+ 
+   const handleAddWater = useCallback((amount: number) => addWater(amount), [addWater]);
+-  const handleAddSteps = useCallback(
+-    (delta: number) => updateSteps((todayActivity?.steps || 0) + delta),
+-    [updateSteps, todayActivity?.steps]
+-  );
+ 
+   const navActions = useMemo(
+     () => ({
+       logMeal: () =>
+         nav.navigate("Plan", {
+@@ -101,7 +99,7 @@
+       editMeals: () =>
+         nav.navigate("Plan", { screen: "MealsDiary", params: { origin: "home" } }),
+-      scan: () => nav.navigate("Scan"),
++      scan: () => nav.navigate("Plan", { screen: "Scan" }),
+       planWeek: () =>
+         nav.navigate("Plan", { screen: "Planner", params: { origin: "home" } }),
+       startWorkout: () =>
+@@ -193,6 +191,10 @@
+   const [aiBusy, setAiBusy] = useState(false);
+   const [aiInput, setAiInput] = useState("");
+   const [aiMsgs, setAiMsgs] = useState<
+     { role: "user" | "assistant"; content: string }[]
+   >([]);
++  const [mealsBusy, setMealsBusy] = useState(false);
++  const [mealIdeas, setMealIdeas] = useState<
++    { title: string; desc?: string; kcal?: number }[]
++  >([]);
+ 
+   const buildContext = () => {
+     const macros = todayActivity?.macros || { protein: 0, carbs: 0, fat: 0 };
+@@ -239,6 +241,35 @@
+     }
+   };
+ 
++  const suggestMealsForToday = async (fromPantry: boolean) => {
++    setMealsBusy(true);
++    try {
++      const remaining = Math.max(
++        0,
++        targets.calories - (todayActivity?.totalCalories || 0)
++      );
++      const ideas = await getDailyMealIdeasAI(
++        {
++          caloriesRemaining: remaining,
++          macrosRemaining: {
++            protein:
++              (userProfile?.macros?.protein || 0) -
++              (todayActivity?.macros?.protein || 0),
++            carbs:
++              (userProfile?.macros?.carbs || 0) -
++              (todayActivity?.macros?.carbs || 0),
++            fat:
++              (userProfile?.macros?.fat || 0) -
++              (todayActivity?.macros?.fat || 0),
++          },
++          usePantry: fromPantry,
++        },
++        userProfile || undefined
++      );
++      setMealIdeas(ideas.map((i) => ({ title: i.title, desc: (i.description || []).join(" "), kcal: i.nutrition?.calories })));
++    } catch {}
++    setMealsBusy(false);
++  };
+   const askAI = async (msg: string) => {
+     const text = msg.trim();
+     if (!text) return;
+@@ -332,10 +363,10 @@
+         <View style={{ marginTop: 12 }}>
+           <Text style={[styles.quickAddTitle, { color: theme.colors.text }]}>
+             Quick add
+           </Text>
+           <View style={styles.chipRow}>
++            <QuickChip label="+150 ml water" onPress={() => handleAddWater(150)} />
+             <QuickChip label="+250 ml water" onPress={() => handleAddWater(250)} />
+             <QuickChip label="+500 ml water" onPress={() => handleAddWater(500)} />
+-            <QuickChip label="+500 steps" onPress={() => handleAddSteps(500)} />
+-            <QuickChip label="+1000 steps" onPress={() => handleAddSteps(1000)} />
+           </View>
+         </View>
+       </View>
+@@ -397,6 +428,37 @@
+             • {t}
+           </Text>
+         ))}
++        <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
++          <TouchableOpacity
++            onPress={() => suggestMealsForToday(false)}
++            disabled={mealsBusy}
++            style={[
++              styles.smallBtn,
++              {
++                backgroundColor: theme.colors.surface2,
++                borderColor: theme.colors.border,
++              },
++            ]}
++          >
++            <Text
++              style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
++            >
++              Meal suggestions
++            </Text>
++          </TouchableOpacity>
++          <TouchableOpacity
++            onPress={() => suggestMealsForToday(true)}
++            disabled={mealsBusy}
++            style={[
++              styles.smallBtn,
++              {
++                backgroundColor: theme.colors.surface2,
++                borderColor: theme.colors.border,
++              },
++            ]}
++          >
++            <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>From Pantry</Text>
++          </TouchableOpacity>
++        </View>
++        {!!mealIdeas.length && (
++          <View style={{ marginTop: 8 }}>
++            {mealIdeas.map((m, i) => (
++              <Text key={`${m.title}-${i}`} style={{ color: theme.colors.textMuted, marginTop: 4 }}>
++                • {m.title}{m.kcal ? ` — ~${m.kcal} kcal` : ""} {m.desc ? `· ${m.desc}` : ""}
++              </Text>
++            ))}
++          </View>
++        )}
+         <TouchableOpacity
+           onPress={() => setShowCoach(true)}
+           style={[
+             styles.smallBtn,
+             {
+@@ -454,13 +516,6 @@
+           <QuickAction
+             icon="play-circle-outline"
+             color="#2962FF"
+             label="Start workout"
+             onPress={navActions.startWorkout}
+           />
+-          <QuickAction
+-            icon="library-outline"
+-            color="#7E57C2"
+-            label="Library"
+-            onPress={navActions.library}
+-          />
+           <QuickAction
+             icon="book-outline"
+             color="#0097A7"
+             label="Recipes"
+             onPress={navActions.recipes}
+diff --git a/app/MealsDiaryScreen.tsx b/app/MealsDiaryScreen.tsx
+--- a/app/MealsDiaryScreen.tsx
++++ b/app/MealsDiaryScreen.tsx
+@@ -1,13 +1,14 @@
+ import React, { useMemo, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   ScrollView,
+   TouchableOpacity,
+   TextInput,
+   Alert,
+ } from "react-native";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import { fonts } from "../src/constants/fonts";
+ import { useActivity } from "../src/context/ActivityContext";
+ 
+ export default function MealsDiaryScreen() {
+   const { theme } = useTheme();
+   const { todayActivity, updateMeal, removeMeal } = useActivity();
+@@ -23,6 +24,14 @@
+   } | null>(null);
+ 
+   const meals = useMemo(() => todayActivity?.meals || [], [todayActivity]);
++  const grouped = useMemo(() => {
++    const map: Record<string, any[]> = {
++      breakfast: [],
++      lunch: [],
++      dinner: [],
++      snack: [],
++    };
++    for (const m of meals) map[m.type]?.push(m);
++    return map;
++  }, [meals]);
+   const totals = useMemo(() => {
+     const c = meals.reduce((a, m) => a + (m.calories || 0), 0);
+     const p = meals.reduce((a, m) => a + (m.macros?.protein || 0), 0);
+@@ -108,41 +117,66 @@
+       </View>
+ 
+       {meals.length === 0 ? (
+         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+           No meals yet. Use Search or Scan to add one.
+         </Text>
+       ) : (
+-        meals.map((m: any) => (
+-          <View
+-            key={m.id}
+-            style={[
+-              styles.card,
+-              {
+-                backgroundColor: theme.colors.surface,
+-                borderColor: theme.colors.border,
+-              },
+-            ]}
+-          >
+-            <Text style={[styles.title, { color: theme.colors.text }]}>{m.name}</Text>
+-            <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>
+-              {m.type} • {m.calories} kcal • P{m.macros?.protein} C
+-              {m.macros?.carbs} F{m.macros?.fat}
+-            </Text>
++        (["breakfast", "lunch", "dinner", "snack"] as const).map((sec) =>
++          grouped[sec].length ? (
++            <View key={`sec-${sec}`}>
++              <Text
++                style={{
++                  color: theme.colors.text,
++                  fontFamily: fonts.semiBold,
++                  marginTop: 10,
++                }}
++              >
++                {sec[0].toUpperCase() + sec.slice(1)}
++              </Text>
++              {grouped[sec].map((m: any) => (
++                <View
++                  key={m.id}
++                  style={[
++                    styles.card,
++                    {
++                      backgroundColor: theme.colors.surface,
++                      borderColor: theme.colors.border,
++                    },
++                  ]}
++                >
++                  <Text style={[styles.title, { color: theme.colors.text }]}>{m.name}</Text>
++                  <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>
++                    {m.type} • {m.calories} kcal • P{m.macros?.protein} C
++                    {m.macros?.carbs} F{m.macros?.fat}
++                  </Text>
++                  {!!m.micros && Object.keys(m.micros).length > 0 && (
++                    <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
++                      Micros:{" "}
++                      {Object.entries(m.micros)
++                        .slice(0, 6)
++                        .map(([k, v]) => `${k} ${v}`)
++                        .join(" · ")}
++                    </Text>
++                  )}
+ 
+             {editing && editing.id === m.id ? (
+               <>
+                 <Row label="Calories">
+                   <TextInput
+                     style={[
+                       styles.input,
+                       {
+                         backgroundColor: theme.colors.surface2,
+                         borderColor: theme.colors.border,
+                         color: theme.colors.text,
+                       },
+                     ]}
+                     keyboardType="numeric"
+                     value={editing.calories}
+                     onChangeText={(t) =>
+                       setEditing((s) => s && { ...s, calories: t })
+                     }
+                   />
+                 </Row>
+                 <Row label="Protein">
+                   <TextInput
+                     style={[
+                       styles.input,
+                       {
+                         backgroundColor: theme.colors.surface2,
+                         borderColor: theme.colors.border,
+                         color: theme.colors.text,
+                       },
+                     ]}
+                     keyboardType="numeric"
+                     value={editing.protein}
+                     onChangeText={(t) =>
+                       setEditing((s) => s && { ...s, protein: t })
+                     }
+                   />
+                 </Row>
+                 <Row label="Carbs">
+                   <TextInput
+                     style={[
+                       styles.input,
+                       {
+                         backgroundColor: theme.colors.surface2,
+                         borderColor: theme.colors.border,
+                         color: theme.colors.text,
+                       },
+                     ]}
+                     keyboardType="numeric"
+                     value={editing.carbs}
+                     onChangeText={(t) =>
+                       setEditing((s) => s && { ...s, carbs: t })
+                     }
+                   />
+                 </Row>
+                 <Row label="Fat">
+                   <TextInput
+                     style={[
+                       styles.input,
+                       {
+                         backgroundColor: theme.colors.surface2,
+                         borderColor: theme.colors.border,
+                         color: theme.colors.text,
+                       },
+                     ]}
+                     keyboardType="numeric"
+                     value={editing.fat}
+                     onChangeText={(t) =>
+                       setEditing((s) => s && { ...s, fat: t })
+                     }
+                   />
+                 </Row>
+                 <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                   <TouchableOpacity
+                     onPress={save}
+                     style={[
+                       styles.smallBtn,
+                       { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+                     ]}
+                   >
+                     <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+                       Save
+                     </Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity
+                     onPress={() => setEditing(null)}
+                     style={[
+                       styles.smallBtn,
+                       { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+                     ]}
+                   >
+                     <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                       Cancel
+                     </Text>
+                   </TouchableOpacity>
+                 </View>
+               </>
+             ) : (
+               <View style={{ flexDirection: "row", gap: 8 }}>
+                 <TouchableOpacity
+                   onPress={() => startEdit(m)}
+                   style={[
+                     styles.smallBtn,
+                     { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+                   ]}
+                 >
+                   <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                     Edit
+                   </Text>
+                 </TouchableOpacity>
+                 <TouchableOpacity
+                   onPress={() => del(m.id)}
+                   style={[
+                     styles.smallBtn,
+                     { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
+                   ]}
+                 >
+                   <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+                     Delete
+                   </Text>
+                 </TouchableOpacity>
+               </View>
+             )}
+-          </View>
+-        ))
++                </View>
++              ))}
++            </View>
++          ) : null
++        )
+       )}
+     </ScrollView>
+   );
+ }
+ 
+ function Row({ label, children }: { label: string; children: React.ReactNode }) {
+diff --git a/app/FoodSearchScreen.tsx b/app/FoodSearchScreen.tsx
+--- a/app/FoodSearchScreen.tsx
++++ b/app/FoodSearchScreen.tsx
+@@ -1,15 +1,17 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   TextInput,
+   TouchableOpacity,
+   FlatList,
+   ListRenderItemInfo,
+   Platform,
+ } from "react-native";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import { fonts } from "../src/constants/fonts";
+ import { useAuth } from "../src/context/AuthContext";
+ import { searchFoods, FoodItem } from "../src/services/foodDb";
+ import { Ionicons } from "@expo/vector-icons";
+ import { useNavigation, useRoute } from "@react-navigation/native";
++import { getFavorites } from "../src/utils/favorites";
+ 
+ export default function FoodSearchScreen() {
+   const { theme } = useTheme();
+   const nav = useNavigation<any>();
+   const route = useRoute<any>();
+   const { user } = useAuth();
+ 
+   const [q, setQ] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [results, setResults] = useState<FoodItem[]>([]);
++  const [favorites, setFavorites] = useState<
++    { id: string; name: string; calories: number; protein: number; carbs: number; fat: number; type: any }[]
++  >([]);
+ 
+   useEffect(() => {
+     let active = true;
+@@ -30,6 +32,13 @@
+       clearTimeout(t);
+     };
+   }, [q, user?.uid]);
+ 
++  useEffect(() => {
++    (async () => {
++      if (!user?.uid) return;
++      const favs = await getFavorites(user.uid);
++      setFavorites(favs || []);
++    })();
++  }, [user?.uid]);
+   const goAdd = (it: FoodItem) => {
+     const origin = route.params?.origin;
+     nav.navigate("FoodAdd", { food: it, origin });
+   };
+@@ -79,6 +88,41 @@
+           accessibilityRole="button"
+         >
+           <Ionicons name="scan-outline" size={18} color={theme.colors.text} />
+         </TouchableOpacity>
+       </View>
+ 
++      {favorites.length > 0 && (
++        <View style={{ marginTop: 10 }}>
++          <Text
++            style={{
++              color: theme.colors.text,
++              fontFamily: fonts.semiBold,
++              marginBottom: 6,
++            }}
++          >
++            Favorites
++          </Text>
++          {favorites.slice(0, 6).map((f) => (
++            <TouchableOpacity
++              key={f.id}
++              onPress={() =>
++                goAdd({
++                  id: f.id,
++                  name: f.name,
++                  serving: "1 serving",
++                  calories: f.calories,
++                  protein: f.protein,
++                  carbs: f.carbs,
++                  fat: f.fat,
++                  source: "local",
++                } as any)
++              }
++              style={[styles.row, { borderBottomColor: theme.colors.border }]}
++            >
++              <View style={{ flex: 1 }}>
++                <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={1}>
++                  {f.name}
++                </Text>
++                <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
++                  {Math.round(f.calories)} kcal • P{f.protein} C{f.carbs} F{f.fat}
++                </Text>
++              </View>
++              <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
++            </TouchableOpacity>
++          ))}
++        </View>
++      )}
+       {loading ? (
+         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+           Searching…
+         </Text>
+       ) : results.length === 0 ? (
+diff --git a/app/ProgramsScreen.tsx b/app/ProgramsScreen.tsx
+--- a/app/ProgramsScreen.tsx
++++ b/app/ProgramsScreen.tsx
+@@ -1,17 +1,19 @@
+ import React, { useCallback, useEffect, useMemo, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   TouchableOpacity,
+   TextInput,
+   Platform,
+   SectionList,
+   ListRenderItemInfo,
+   Switch,
++  ScrollView,
+ } from "react-native";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import { fonts } from "../src/constants/fonts";
+ import { useNavigation } from "@react-navigation/native";
+ import {
+   searchExercises,
+   Exercise,
+   groupByPrimaryMuscle,
+   getHowToSteps,
+   appendExerciseToRoutineDraft,
+ } from "../src/services/workoutsDb";
+ import { useToast } from "../src/ui/components/Toast";
+ import { useHaptics } from "../src/ui/hooks/useHaptics";
+ import { useAuth } from "../src/context/AuthContext";
+ import {
+   getExerciseFavorites,
+   toggleExerciseFavorite,
+ } from "../src/utils/exerciseFavorites";
+ import { Ionicons } from "@expo/vector-icons";
+ 
+ export default function ProgramsScreen() {
+   const { theme } = useTheme();
+   const nav = useNavigation<any>();
+   const toast = useToast();
+   const h = useHaptics();
+   const { user } = useAuth();
+ 
+   const [query, setQuery] = useState("");
+   const [loading, setLoading] = useState(false);
+   const [results, setResults] = useState<Exercise[]>([]);
+   const [favoritesOnly, setFavoritesOnly] = useState(false);
+   const [favNames, setFavNames] = useState<string[]>([]);
++  const [group, setGroup] = useState<string>("All");
++  const MUSCLE_GROUPS = [
++    "All",
++    "Chest",
++    "Back",
++    "Shoulders",
++    "Quads",
++    "Hamstrings",
++    "Glutes",
++    "Core",
++    "Biceps",
++    "Triceps",
++    "Forearms",
++    "Calves",
++  ];
+ 
+   const uid = user?.uid || null;
+ 
+   useEffect(() => {
+     (async () => {
+       const favs = await getExerciseFavorites(uid);
+       setFavNames(favs.map((f) => f.name.toLowerCase()));
+     })();
+   }, [uid]);
+ 
+   useEffect(() => {
+     let active = true;
+     const run = async () => {
+       const q = query.trim();
+       if (!q) {
+         setResults([]);
+         return;
+       }
+       setLoading(true);
+       try {
+-        const data = await searchExercises(q, { limit: 120 });
++        const data = await searchExercises(q, { limit: 200 });
+         if (active) setResults(data);
+       } finally {
+         setLoading(false);
+       }
+     };
+     const t = setTimeout(run, 250);
+     return () => {
+       active = false;
+       clearTimeout(t);
+     };
+   }, [query]);
+ 
+-  const filtered = useMemo(() => {
+-    if (!favoritesOnly) return results;
+-    if (!favNames.length) return [];
+-    return results.filter((e) => favNames.includes(e.name.toLowerCase()));
+-  }, [results, favoritesOnly, favNames]);
++  const filtered = useMemo(() => {
++    let base = results;
++    if (group !== "All") {
++      base = base.filter((e) => {
++        const primary = (e.primaryMuscles?.[0] || e.category || "Other").toLowerCase();
++        return (
++          primary.includes(group.toLowerCase()) ||
++          (e.category || "").toLowerCase().includes(group.toLowerCase())
++        );
++      });
++    }
++    if (!favoritesOnly) return base;
++    if (!favNames.length) return [];
++    return base.filter((e) => favNames.includes(e.name.toLowerCase()));
++  }, [results, favoritesOnly, favNames, group]);
+ 
+   const sections = useMemo(() => groupByPrimaryMuscle(filtered), [filtered]);
+ 
+   const addToBuilder = useCallback(
+     async (e: Exercise) => {
+       await appendExerciseToRoutineDraft(uid, e);
+       h.impact("light");
+       toast.success(`${e.name} added to Builder`);
+       nav.navigate("RoutineBuilder", { addExercise: { id: e.id, name: e.name } });
+     },
+     [h, nav, toast, uid]
+   );
+@@ -84,6 +106,31 @@
+           <Switch value={favoritesOnly} onValueChange={setFavoritesOnly} />
+         </View>
+       </View>
++      <ScrollView
++        horizontal
++        showsHorizontalScrollIndicator={false}
++        contentContainerStyle={{ gap: 8, marginTop: 8 }}
++      >
++        {[
++          ...MUSCLE_GROUPS,
++        ].map((g) => {
++          const active = group === g;
++          return (
++            <TouchableOpacity
++              key={g}
++              onPress={() => setGroup(g)}
++              style={{
++                paddingHorizontal: 12,
++                paddingVertical: 8,
++                borderRadius: 999,
++                borderWidth: 1,
++                borderColor: theme.colors.border,
++                backgroundColor: active ? theme.colors.primary : theme.colors.surface2,
++              }}
++            >
++              <Text style={{ color: active ? "#fff" : theme.colors.text, fontFamily: fonts.semiBold }}>{g}</Text>
++            </TouchableOpacity>
++          );
++        })}
++      </ScrollView>
+ 
+       {loading ? (
+         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>Searching…</Text>
+       ) : sections.length === 0 ? (
+         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+diff --git a/app/ScanFoodScreen.tsx b/app/ScanFoodScreen.tsx
+--- a/app/ScanFoodScreen.tsx
++++ b/app/ScanFoodScreen.tsx
+@@ -1,23 +1,24 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   TouchableOpacity,
+   Alert,
+   Image,
+   ScrollView,
+   TextInput,
+   Platform,
+ } from "react-native";
+ import Constants from "expo-constants";
+ import * as ImagePicker from "expo-image-picker";
+ import * as ImageManipulator from "expo-image-manipulator";
+ import { Ionicons } from "@expo/vector-icons";
+ 
+ import { getByBarcode, addCustomFood } from "../src/services/foodDb";
+ import { useActivity } from "../src/context/ActivityContext";
+ import { useAuth } from "../src/context/AuthContext";
+ import {
+   analyzeMealImageBase64,
+   MealImageAnalysis,
++  labelFoodImageBase64,
+ } from "../src/services/healthAI";
+ import { fonts } from "../src/constants/fonts";
+ import QuickEditMealModal, {
+   QuickMeal,
+ } from "../src/components/QuickEditMealModal";
+@@ -279,10 +280,14 @@
+       const base64 = manipulated.base64 || "";
+       if (!base64) throw new Error("Could not read image data.");
+-      const result = await analyzeMealImageBase64(
++      // optional label hint via HF to guide Gemini
++      const label = await labelFoodImageBase64(base64, "image/jpeg");
++      const result = await analyzeMealImageBase64(
+         base64,
+         "image/jpeg",
+-        buildContext()
++        buildContext(),
++        {
++          labelHint: label.label || "",
++        }
+       );
+       const g =
+         result.portionGrams ?? parseServingToGrams(result.serving) ?? null;
+       setAnalysis(result);
+diff --git a/app/PantryScreen.tsx b/app/PantryScreen.tsx
+--- a/app/PantryScreen.tsx
++++ b/app/PantryScreen.tsx
+@@ -1,19 +1,23 @@
+ import React, { useEffect, useMemo, useState } from "react";
+ import {
+   View,
+   Text,
+   StyleSheet,
+   ScrollView,
+   TouchableOpacity,
+   TextInput,
+   Alert,
+ } from "react-native";
+ import { useTheme } from "../src/ui/ThemeProvider";
+ import { fonts } from "../src/constants/fonts";
+ import { useAuth } from "../src/context/AuthContext";
+ import {
+   listPantry,
+   addPantryItem,
+   updatePantryItem,
+   deletePantryItem,
+   PantryItem,
+ } from "../src/services/pantry";
++import * as ImagePicker from "expo-image-picker";
++import * as ImageManipulator from "expo-image-manipulator";
++import { labelFoodImageBase64 } from "../src/services/healthAI";
+ 
+ export default function PantryScreen() {
+   const { theme } = useTheme();
+   const { user } = useAuth();
+@@ -66,6 +70,31 @@
+     load();
+   };
+ 
++  const analyzePhoto = async () => {
++    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
++    if (!perm.granted) return Alert.alert("Permission", "Allow photo access");
++    const res = await ImagePicker.launchImageLibraryAsync({
++      mediaTypes: ImagePicker.MediaTypeOptions.Images,
++      quality: 0.9,
++    });
++    if (res.canceled || !res.assets?.[0]?.uri || !user?.uid) return;
++    const m = await ImageManipulator.manipulateAsync(
++      res.assets[0].uri,
++      [{ resize: { width: 768 } }],
++      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
++    );
++    const base64 = m.base64 || "";
++    try {
++      const lab = await labelFoodImageBase64(base64, "image/jpeg");
++      const guess = (lab.label || "").replace(/_/g, " ").trim();
++      if (!guess) return Alert.alert("Analyze", "Could not identify the item.");
++      setName(guess[0].toUpperCase() + guess.slice(1));
++      Alert.alert("Analyzed", `Detected: ${guess}. You can edit and add.`);
++    } catch (e: any) {
++      Alert.alert("Analyze", e?.message || "Failed to analyze.");
++    }
++  };
++
+   const filtered = useMemo(() => {
+     const s = q.trim().toLowerCase();
+     return s ? items.filter((i) => i.name.toLowerCase().includes(s)) : items;
+   }, [items, q]);
+@@ -94,6 +123,14 @@
+           styles.card,
+           {
+             backgroundColor: theme.colors.surface,
+             borderColor: theme.colors.border,
+           },
+         ]}
+       >
+         <Text style={[styles.sub, { color: theme.colors.text }]}>Add item</Text>
+         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
++          <TouchableOpacity
++            onPress={analyzePhoto}
++            style={[
++              styles.btn,
++              { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
++            ]}
++          >
++            <Text style={styles.btnTextDark}>Analyze Photo</Text>
++          </TouchableOpacity>
+           <TextInput
+             style={[
+               styles.input,
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -317,15 +317,19 @@
+     const { GoogleGenerativeAI } = await import("@google/generative-ai");
+     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value() || "");
+     const model = genAI.getGenerativeModel({
+       model: "gemini-1.5-flash",
+       systemInstruction:
+-        "You are VitalPath AI. Analyze food images and estimate nutrition for the served portion (not per 100 g). " +
+-        "Estimate portion grams and give totals. If labelHint is provided, use it as the likely dish name. " +
+-        "Return only valid JSON per the schema.",
++        "You are VitalPath AI. Analyze food images and estimate nutrition for the served portion (not per 100 g). " +
++        "Decompose the plate into all components: mains, sides, sauces, condiments, oils, dressings, and beverages visible. " +
++        "Infer preparation methods (grilled, fried, stewed) and reflect likely oil/fat contributions. " +
++        "Estimate portion grams and give totals. If labelHint is provided, bias dish name toward it. " +
++        "Return ONLY valid JSON per the schema.",
+     });
+ 
+     const schemaV2 =
+       `Respond ONLY with JSON:\n` +
+       `{\n` +
+       `  "item": {\n` +
+       `    "name": "string",\n` +
+       `    "portionGrams": number,\n` +
+       `    "servingText": "string",\n` +
+-      `    "items": [ { "name": "string", "grams": number, "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { [k: string]: number } } ],\n` +
++      `    "items": [ { "name": "string", "grams": number, "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { [k: string]: number }, "notes": "optional prep/sauce" } ],\n` +
+       `    "totals": { "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { "fiber": number, "sodium": number, "potassium": number, "vitaminC": number, "calcium": number, "iron": number } },\n` +
+       `    "confidence": number\n` +
+       `  }\n` +
+       `}`;
+ 
+@@ -460,6 +464,7 @@
+       return {
+         item: {
+           name,
+           portionGrams: pg,
+           servingText,
+           items,
+           totals: { ...totals, micros },
+           confidence,
+         },
+       };
+     } catch (e: any) {
+diff --git a/src/services/healthAI.ts b/src/services/healthAI.ts
+--- a/src/services/healthAI.ts
++++ b/src/services/healthAI.ts
+@@ -1,10 +1,11 @@
+ import { httpsCallable } from "firebase/functions";
+ import { functions } from "../config/firebase";
+ 
+ export interface HealthContext {
+   name?: string;
+   age?: number;
+   weight?: number;
+   height?: number;
+   gender?: string;
+   goal?: string;
+   dailyCalories?: number;
+   macros?: { protein: number; carbs: number; fat: number };
+   todayStats?: {
+     caloriesConsumed: number;
+     caloriesRemaining: number;
+     steps: number;
+     waterIntake: number;
+     mealsCount: number;
+     workoutsCount: number;
+     macros: { protein: number; carbs: number; fat: number };
+   };
+   healthConditions?: string[];
+ }
+@@ -151,6 +152,35 @@
+   return [
+     {
+       title: "Meal ideas",
+       ingredients: [],
+       description: text.split("\n").filter(Boolean).slice(0, 8),
+     },
+   ];
+ }
+ 
++export async function getDailyMealIdeasAI(
++  targets: {
++    caloriesRemaining: number;
++    macrosRemaining: { protein: number; carbs: number; fat: number };
++    usePantry?: boolean;
++  },
++  profile?: HealthContext
++): Promise<PantryIdea[]> {
++  const msg = `
++You are a dietician. Suggest 3 meal ideas the user can eat today.
++Respect dietary preferences and allergies from context. Use concise servings with grams.
++Target remaining today: ${targets.caloriesRemaining} kcal, P${targets.macrosRemaining.protein} C${targets.macrosRemaining.carbs} F${targets.macrosRemaining.fat}.
++${targets.usePantry ? "Prefer items likely to be in a typical pantry." : ""}
++Return ONLY JSON:
++[{"title":"","ingredients":[""],"description":[""],"nutrition":{"calories":0,"protein":0,"carbs":0,"fat":0}}]
++`.trim();
++  const txt = await getHealthAssistantResponse(msg, profile || {});
++  const json = tryParseJSON<PantryIdea[]>(txt);
++  if (json && Array.isArray(json)) return json.slice(0, 5);
++  return [
++    {
++      title: "Meal suggestions",
++      ingredients: [],
++      description: txt.split("\n").filter(Boolean).slice(0, 6),
++    },
++  ];
++}
+diff --git a/src/services/workoutsDb.ts b/src/services/workoutsDb.ts
+--- a/src/services/workoutsDb.ts
++++ b/src/services/workoutsDb.ts
+@@ -102,7 +102,7 @@
+ export async function searchExercises(
+   queryText: string,
+   opts: { limit?: number } = {}
+ ): Promise<Exercise[]> {
+   const q = queryText.trim();
+   if (!q) return [];
+@@ -116,7 +116,7 @@
+ 
+   try {
+-    const limit = Math.max(1, Math.min(120, opts.limit || 80));
++    const limit = Math.max(1, Math.min(200, opts.limit || 120));
+     const url =
+       `${API}/exerciseinfo/?language=2&limit=${limit}&search=` +
+       encodeURIComponent(q);
+     const data = await fetchJson<{ results: any[] }>(url);
+     const wger = (data.results || []).map(mapExInfo).filter(Boolean) as

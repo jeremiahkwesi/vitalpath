@@ -1,10 +1,11 @@
+// src/components/WeeklyTrends.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
-import { colors } from "../constants/colors";
 import { fonts } from "../constants/fonts";
+import { useTheme } from "../ui/ThemeProvider";
 
 type DaySummary = {
   date: string;
@@ -28,6 +29,7 @@ function lastNDates(n: number): string[] {
 }
 
 export default function WeeklyTrends({ days = 7 }: { days?: number }) {
+  const { theme } = useTheme();
   const { user } = useAuth();
   const [data, setData] = useState<DaySummary[]>([]);
   const dates = useMemo(() => lastNDates(days), [days]);
@@ -83,28 +85,71 @@ export default function WeeklyTrends({ days = 7 }: { days?: number }) {
   const maxSteps = Math.max(1, ...data.map((r) => r.steps));
   const maxWater = Math.max(1, ...data.map((r) => r.water));
 
-  const Bar = ({ value, max, color }: { value: number; max: number; color: string }) => (
-    <View style={styles.barTrack}>
-      <View style={[styles.barFill, { width: `${(value / max) * 100}%`, backgroundColor: color }]} />
+  const Bar = ({
+    value,
+    max,
+    color,
+  }: {
+    value: number;
+    max: number;
+    color: string;
+  }) => (
+    <View
+      style={[
+        styles.barTrack,
+        { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+      ]}
+    >
+      <View
+        style={[
+          styles.barFill,
+          {
+            width: `${Math.min(100, (value / max) * 100)}%`,
+            backgroundColor: color,
+          },
+        ]}
+      />
     </View>
   );
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Last {days} Days Trends</Text>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Last {days} Days Trends
+      </Text>
       {data.map((r) => (
         <View key={r.date} style={styles.row}>
-          <Text style={styles.dateLabel}>{new Date(r.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" })}</Text>
+          <Text
+            style={[styles.dateLabel, { color: theme.colors.textMuted }]}
+          >
+            {new Date(r.date + "T00:00:00").toLocaleDateString(undefined, {
+              weekday: "short",
+            })}
+          </Text>
           <View style={styles.metricCol}>
-            <Text style={styles.metricLabel}>Calories</Text>
-            <Bar value={r.calories} max={maxCal} color={colors.primary} />
+            <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+              Calories
+            </Text>
+            <Bar value={r.calories} max={maxCal} color={theme.colors.primary} />
           </View>
           <View style={styles.metricCol}>
-            <Text style={styles.metricLabel}>Steps</Text>
+            <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+              Steps
+            </Text>
             <Bar value={r.steps} max={maxSteps} color="#4ECDC4" />
           </View>
           <View style={styles.metricCol}>
-            <Text style={styles.metricLabel}>Water</Text>
+            <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+              Water
+            </Text>
             <Bar value={r.water} max={maxWater} color="#45B7D1" />
           </View>
         </View>
@@ -115,21 +160,21 @@ export default function WeeklyTrends({ days = 7 }: { days?: number }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
-  title: { fontSize: 18, fontFamily: fonts.semiBold, color: colors.text, marginBottom: 12 },
+  title: { fontSize: 18, fontFamily: fonts.semiBold, marginBottom: 12 },
   row: { marginBottom: 10 },
-  dateLabel: { fontSize: 12, color: colors.gray, marginBottom: 6, fontFamily: fonts.regular },
+  dateLabel: { fontSize: 12, marginBottom: 6, fontFamily: fonts.regular },
   metricCol: { marginBottom: 6 },
-  metricLabel: { fontSize: 11, color: colors.gray, marginBottom: 4, fontFamily: fonts.regular },
+  metricLabel: { fontSize: 11, marginBottom: 4, fontFamily: fonts.regular },
   barTrack: {
     height: 8,
-    backgroundColor: colors.lightGray,
     borderRadius: 6,
     overflow: "hidden",
+    borderWidth: 1,
   },
   barFill: { height: 8, borderRadius: 6 },
 });

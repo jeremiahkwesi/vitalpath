@@ -1,14 +1,6 @@
 // app/WeeklyCheckInScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from "react-native";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
@@ -76,73 +68,31 @@ export default function WeeklyCheckInScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={[styles.header, { color: theme.colors.text }]}>
-        Weekly Check‑in
-      </Text>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.header, { color: theme.colors.text }]}>Weekly Check‑in</Text>
       <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
         Log weight (kg), review trend, and update daily calories automatically.
       </Text>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.sub, { color: theme.colors.text }]}>Log</Text>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
           placeholder="Weight (kg)"
           placeholderTextColor={theme.colors.textMuted}
           keyboardType="decimal-pad"
           value={kg}
           onChangeText={setKg}
         />
-        <TouchableOpacity
-          onPress={onSave}
-          disabled={busy}
-          style={[
-            styles.btn,
-            {
-              backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.primary,
-            },
-          ]}
-        >
-          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-            {busy ? "Saving…" : "Save"}
-          </Text>
+        <TouchableOpacity onPress={onSave} disabled={busy} style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, opacity: busy ? 0.7 : 1 }]}>
+          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>{busy ? "Saving…" : "Save"}</Text>
         </TouchableOpacity>
       </View>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.sub, { color: theme.colors.text }]}>Trend</Text>
         <Text style={{ color: theme.colors.textMuted }}>
-          1‑week avg: {avg1 != null ? `${avg1} kg` : "—"} • 2‑week avg:{" "}
-          {avg2 != null ? `${avg2} kg` : "—"}
+          1‑week avg: {avg1 != null ? `${avg1} kg` : "—"} • 2‑week avg: {avg2 != null ? `${avg2} kg` : "—"}
         </Text>
         <View style={{ marginTop: 6 }}>
           {history.slice(-10).map((h) => (
@@ -153,43 +103,19 @@ export default function WeeklyCheckInScreen() {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.sub, { color: theme.colors.text }]}>Adjustment</Text>
         {!plan ? (
-          <Text style={{ color: theme.colors.textMuted }}>
-            Not enough data yet (log weights for at least a week).
-          </Text>
+          <Text style={{ color: theme.colors.textMuted }}>Not enough data yet (log weights for at least a week).</Text>
         ) : (
           <>
-            <Text style={{ color: theme.colors.text }}>
-              {plan.reason}
-            </Text>
+            <Text style={{ color: theme.colors.text }}>{plan.reason}</Text>
             <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>
               Suggested: {plan.delta > 0 ? "+" : ""}
               {plan.delta} kcal/day → New target {plan.newTarget} kcal/day
             </Text>
-            <TouchableOpacity
-              onPress={apply}
-              style={[
-                styles.btn,
-                {
-                  backgroundColor: theme.colors.primary,
-                  borderColor: theme.colors.primary,
-                  marginTop: 8,
-                },
-              ]}
-            >
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                Apply new target
-              </Text>
+            <TouchableOpacity onPress={apply} style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, marginTop: 8 }]}>
+              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Apply new target</Text>
             </TouchableOpacity>
           </>
         )}

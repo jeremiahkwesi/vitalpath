@@ -309,34 +309,3 @@ Return plain text only.
   return await getHealthAssistantResponse(msg, profile || {});
 }
 
-// Grocery optimizer
-export async function optimizeGroceryListAI(
-  need: { name: string; grams?: number }[],
-  pantry: PantryLite[],
-  opts?: {
-    currency?: string;
-    budget?: number;
-    dietaryPreferences?: string[];
-  }
-): Promise<string> {
-  const msg = `
-You are a budget-savvy dietician. Given a grocery NEED list, Pantry, and optional budget, 
-suggest substitutions to reduce cost while keeping nutrition reasonable. 
-Prefer pantry and staples (rice/beans/oats), avoid expensive items. 
-Return brief bullet points: substitutions and a prioritized shopping list within budget (if provided).
-
-NEED:
-${need.map((n) => `- ${n.name}${n.grams ? ` (${Math.round(n.grams)} g)` : ""}`).join("\n")}
-
-Pantry:
-${pantry.map((p) => `- ${p.name}${p.grams ? ` (${p.grams} g)` : p.count ? ` (${p.count} pcs)` : ""}`).join("\n")}
-
-Currency: ${opts?.currency || "USD"}
-Budget: ${opts?.budget != null ? opts?.budget : "n/a"}
-Preferences: ${opts?.dietaryPreferences?.join(", ") || "none"}
-
-Return plain text bullets, concise.
-  `.trim();
-
-  return await getHealthAssistantResponse(msg, {});
-}

@@ -22,7 +22,6 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   deleteUser,
-  updateEmail as fbUpdateEmail,
 } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -53,24 +52,19 @@ export default function SettingsScreen() {
 
   const [pwd, setPwd] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scheduleBusy, setScheduleBusy] = useState(false);
 
   // Units
-  const [units, setUnitsState] = useState<Units>({
-    weight: "kg",
-    distance: "km",
-  });
+  const [units, setUnitsState] = useState<Units>({ weight: "kg", distance: "km" });
 
-  // Goals & Macros quick edit (still available here)
+  // Goals & Macros quick edit (mirror)
   const [calories, setCalories] = useState<string>("");
   const [protein, setProtein] = useState<string>("");
   const [carbs, setCarbs] = useState<string>("");
   const [fat, setFat] = useState<string>("");
 
   // Daily Goals
-  const [dGoals, setDGoals] = useState<DailyGoals>({
-    stepsGoal: 8000,
-    waterGoalMl: 2000,
-  });
+  const [dGoals, setDGoals] = useState<DailyGoals>({ stepsGoal: 8000, waterGoalMl: 2000 });
 
   // Integrations / privacy
   const [integrations, setIntegrationsState] = useState<Integrations>({
@@ -96,10 +90,6 @@ export default function SettingsScreen() {
   // Modals for time picking
   const [showMealsModal, setShowMealsModal] = useState(false);
   const [showWaterModal, setShowWaterModal] = useState(false);
-  const [androidPicker, setAndroidPicker] = useState<{
-    key?: string;
-    visible: boolean;
-  }>({ visible: false });
 
   // Import JSON text
   const [importText, setImportText] = useState("");
@@ -160,13 +150,11 @@ export default function SettingsScreen() {
       dinner: dTime.toISOString(),
       water: waterTimes.map((d) => d.toISOString()),
     };
-    await AsyncStorage.setItem(
-      `reminders:${user.uid}`,
-      JSON.stringify(payload)
-    );
+    await AsyncStorage.setItem(`reminders:${user.uid}`, JSON.stringify(payload));
   };
 
   const applyReminders = async () => {
+    setScheduleBusy(true);
     try {
       await cancelAllReminders();
       if (mealsEnabled) {
@@ -178,16 +166,15 @@ export default function SettingsScreen() {
       }
       if (waterEnabled) {
         await scheduleWaterRemindersAt(
-          waterTimes.map((t) => ({
-            hour: t.getHours(),
-            minute: t.getMinutes(),
-          }))
+          waterTimes.map((t) => ({ hour: t.getHours(), minute: t.getMinutes() }))
         );
       }
       await saveReminderTimes();
       Alert.alert("Reminders", "Saved and scheduled.");
     } catch {
       Alert.alert("Reminders", "Failed to schedule reminders.");
+    } finally {
+      setScheduleBusy(false);
     }
   };
 
@@ -203,10 +190,7 @@ export default function SettingsScreen() {
     const cb = Math.max(0, Math.round(Number(carbs) || 0));
     const f = Math.max(0, Math.round(Number(fat) || 0));
     try {
-      await updateUserProfile({
-        dailyCalories: c,
-        macros: { protein: p, carbs: cb, fat: f },
-      });
+      await updateUserProfile({ dailyCalories: c, macros: { protein: p, carbs: cb, fat: f } });
       Alert.alert("Saved", "Goals & macros updated.");
     } catch {
       Alert.alert("Error", "Failed to save goals. Try again.");
@@ -227,10 +211,7 @@ export default function SettingsScreen() {
     setIntegrationsState(next);
     await setIntegrations(next, user?.uid);
     if (key === "fitnessSync") {
-      Alert.alert(
-        "Fitness sync",
-        "If steps do not update immediately, restart the app."
-      );
+      Alert.alert("Fitness sync", "If steps do not update immediately, restart the app.");
     }
   };
 
@@ -259,70 +240,25 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        Settings
-      </Text>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.title, { color: theme.colors.text }]}>Settings</Text>
 
-      {/* Shortcuts to separate editors */}
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Profile & Goals
-        </Text>
+      {/* Shortcuts */}
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Profile & Goals</Text>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <TouchableOpacity
-            onPress={() => nav.navigate("EditProfile")}
-            style={[
-              styles.btn,
-              {
-                backgroundColor: theme.colors.surface2,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.btnText, { color: theme.colors.text }]}>
-              Edit Profile
-            </Text>
+          <TouchableOpacity onPress={() => nav.navigate("EditProfile")} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+            <Text style={[styles.btnText, { color: theme.colors.text }]}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => nav.navigate("EditGoals")}
-            style={[
-              styles.btn,
-              {
-                backgroundColor: theme.colors.surface2,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.btnText, { color: theme.colors.text }]}>
-              Edit Goals
-            </Text>
+          <TouchableOpacity onPress={() => nav.navigate("EditGoals")} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+            <Text style={[styles.btnText, { color: theme.colors.text }]}>Edit Goals</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Appearance */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Appearance
-        </Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Appearance</Text>
         <Select
           label="Theme"
           value={scheme}
@@ -336,15 +272,8 @@ export default function SettingsScreen() {
       </View>
 
       {/* Units */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Units
-        </Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Units</Text>
         <Select
           label="Weight unit"
           value={units.weight}
@@ -356,29 +285,13 @@ export default function SettingsScreen() {
         />
       </View>
 
-      {/* Goals & Macros quick edit */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Goals & Macros (quick edit)
-        </Text>
+      {/* Goals quick edit */}
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Goals & Macros (quick edit)</Text>
 
-        <Text style={[styles.label, { color: theme.colors.text }]}>
-          Daily calories (kcal)
-        </Text>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Daily calories (kcal)</Text>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
           keyboardType="numeric"
           value={calories}
           onChangeText={setCalories}
@@ -386,54 +299,27 @@ export default function SettingsScreen() {
 
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Protein (g)
-            </Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Protein (g)</Text>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
+              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
               keyboardType="numeric"
               value={protein}
               onChangeText={setProtein}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Carbs (g)
-            </Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Carbs (g)</Text>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
+              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
               keyboardType="numeric"
               value={carbs}
               onChangeText={setCarbs}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Fat (g)
-            </Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Fat (g)</Text>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
+              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
               keyboardType="numeric"
               value={fat}
               onChangeText={setFat}
@@ -441,157 +327,77 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={saveGoals}
-          style={[styles.apply, { backgroundColor: theme.colors.primary }]}
-        >
-          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-            Save Goals
-          </Text>
+        <TouchableOpacity onPress={saveGoals} style={[styles.apply, { backgroundColor: theme.colors.primary }]}>
+          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Save Goals</Text>
         </TouchableOpacity>
       </View>
 
       {/* Daily Goals */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Daily Goals
-        </Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Daily Goals</Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Steps goal
-            </Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Steps goal</Text>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
+              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
               keyboardType="numeric"
               value={String(dGoals.stepsGoal)}
-              onChangeText={(t) =>
-                setDGoals((s) => ({
-                  ...s,
-                  stepsGoal: Math.max(0, parseInt(t || "0", 10)),
-                }))
-              }
+              onChangeText={(t) => setDGoals((s) => ({ ...s, stepsGoal: Math.max(0, parseInt(t || "0", 10)) }))}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Water goal (ml)
-            </Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Water goal (ml)</Text>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
+              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
               keyboardType="numeric"
               value={String(dGoals.waterGoalMl)}
-              onChangeText={(t) =>
-                setDGoals((s) => ({
-                  ...s,
-                  waterGoalMl: Math.max(0, parseInt(t || "0", 10)),
-                }))
-              }
+              onChangeText={(t) => setDGoals((s) => ({ ...s, waterGoalMl: Math.max(0, parseInt(t || "0", 10)) }))}
             />
           </View>
         </View>
-        <TouchableOpacity
-          onPress={async () => {
-            await setGoals(dGoals, user?.uid);
-            Alert.alert("Saved", "Daily goals updated.");
-          }}
-          style={[styles.apply, { backgroundColor: theme.colors.primary }]}
-        >
-          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-            Save Daily Goals
-          </Text>
+        <TouchableOpacity onPress={async () => {
+          await setGoals(dGoals, user?.uid);
+          Alert.alert("Saved", "Daily goals updated.");
+        }} style={[styles.apply, { backgroundColor: theme.colors.primary }]}>
+          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Save Daily Goals</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Reminders with toggles and modals */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Reminders
-        </Text>
+      {/* Reminders */}
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Reminders</Text>
 
         <View style={styles.switchRow}>
-          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-            Meal reminders
-          </Text>
-          <Switch
-            value={mealsEnabled}
-            onValueChange={(v) => setMealsEnabled(v)}
-          />
+          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Meal reminders</Text>
+          <Switch value={mealsEnabled} onValueChange={(v) => setMealsEnabled(v)} />
         </View>
         <TouchableOpacity
           disabled={!mealsEnabled}
           onPress={() => setShowMealsModal(true)}
-          style={[
-            styles.btn,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              opacity: mealsEnabled ? 1 : 0.6,
-            },
-          ]}
+          style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, opacity: mealsEnabled ? 1 : 0.6 }]}
         >
-          <Text style={[styles.btnText, { color: theme.colors.text }]}>
-            Set meal times
-          </Text>
+          <Text style={[styles.btnText, { color: theme.colors.text }]}>Set meal times</Text>
         </TouchableOpacity>
 
         <View style={[styles.switchRow, { marginTop: 10 }]}>
-          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-            Water reminders
-          </Text>
-          <Switch
-            value={waterEnabled}
-            onValueChange={(v) => setWaterEnabled(v)}
-          />
+          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Water reminders</Text>
+          <Switch value={waterEnabled} onValueChange={(v) => setWaterEnabled(v)} />
         </View>
         <TouchableOpacity
           disabled={!waterEnabled}
           onPress={() => setShowWaterModal(true)}
-          style={[
-            styles.btn,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              opacity: waterEnabled ? 1 : 0.6,
-            },
-          ]}
+          style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, opacity: waterEnabled ? 1 : 0.6 }]}
         >
-          <Text style={[styles.btnText, { color: theme.colors.text }]}>
-            Set water times
-          </Text>
+          <Text style={[styles.btnText, { color: theme.colors.text }]}>Set water times</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={applyReminders}
-          style={[styles.apply, { backgroundColor: theme.colors.primary }]}
-          disabled={!user?.uid}
+          style={[styles.apply, { backgroundColor: theme.colors.primary, opacity: scheduleBusy ? 0.7 : 1 }]}
+          disabled={!user?.uid || scheduleBusy}
         >
           <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-            Save & Schedule
+            {scheduleBusy ? "Scheduling…" : "Save & Schedule"}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -599,35 +405,18 @@ export default function SettingsScreen() {
             await cancelAllReminders();
             Alert.alert("Reminders", "Canceled all reminders.");
           }}
-          style={[
-            styles.apply,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              borderWidth: 1,
-            },
-          ]}
+          style={[styles.apply, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
         >
-          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-            Cancel All
-          </Text>
+          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Cancel All</Text>
         </TouchableOpacity>
       </View>
 
       {/* Data */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <Text style={[styles.section, { color: theme.colors.text }]}>Data</Text>
         <TouchableOpacity
           onPress={async () => {
-            if (!user?.uid) {
-              Alert.alert("Sign in required");
-              return;
-            }
+            if (!user?.uid) return Alert.alert("Sign in required");
             try {
               await exportAll(user.uid);
             } catch {
@@ -636,20 +425,11 @@ export default function SettingsScreen() {
           }}
           style={[styles.apply, { backgroundColor: theme.colors.primary }]}
         >
-          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-            Export data
-          </Text>
+          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Export data</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowImport((s) => !s)}
-          style={[
-            styles.apply,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              borderWidth: 1,
-            },
-          ]}
+          style={[styles.apply, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
         >
           <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
             {showImport ? "Hide import" : "Import from pasted JSON"}
@@ -658,16 +438,7 @@ export default function SettingsScreen() {
         {showImport && (
           <>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  height: 140,
-                  textAlignVertical: "top",
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                  color: theme.colors.text,
-                },
-              ]}
+              style={[styles.input, { height: 140, textAlignVertical: "top", backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
               multiline
               placeholder="Paste export JSON here"
               placeholderTextColor={theme.colors.textMuted}
@@ -676,20 +447,11 @@ export default function SettingsScreen() {
             />
             <TouchableOpacity
               onPress={async () => {
-                if (!user?.uid) {
-                  Alert.alert("Sign in required");
-                  return;
-                }
-                if (!importText.trim()) {
-                  Alert.alert("Import", "Paste a valid JSON first.");
-                  return;
-                }
+                if (!user?.uid) return Alert.alert("Sign in required");
+                if (!importText.trim()) return Alert.alert("Import", "Paste a valid JSON first.");
                 try {
                   const res = await importFromJson(user.uid, importText.trim());
-                  Alert.alert(
-                    "Import complete",
-                    `Activities: ${res.activities}\nCustom items: ${res.customs}\nRoutines: ${res.routines}`
-                  );
+                  Alert.alert("Import complete", `Activities: ${res.activities}\nCustom items: ${res.customs}\nRoutines: ${res.routines}`);
                   setImportText("");
                 } catch (e: any) {
                   Alert.alert("Import failed", e?.message || "Invalid JSON.");
@@ -697,9 +459,7 @@ export default function SettingsScreen() {
               }}
               style={[styles.apply, { backgroundColor: theme.colors.primary }]}
             >
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                Import JSON
-              </Text>
+              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Import JSON</Text>
             </TouchableOpacity>
           </>
         )}
@@ -708,43 +468,18 @@ export default function SettingsScreen() {
             await clearLocalCache(user?.uid || null);
             Alert.alert("Cache cleared", "Local caches removed.");
           }}
-          style={[
-            styles.apply,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              borderWidth: 1,
-            },
-          ]}
+          style={[styles.apply, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
         >
-          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-            Clear local cache
-          </Text>
+          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Clear local cache</Text>
         </TouchableOpacity>
       </View>
 
       {/* Account */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Account
-        </Text>
-        <Text style={[styles.label, { color: theme.colors.text }]}>
-          Password (for delete)
-        </Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Account</Text>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Password (for delete)</Text>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
           placeholder="Password"
           placeholderTextColor={theme.colors.textMuted}
           secureTextEntry
@@ -754,49 +489,22 @@ export default function SettingsScreen() {
         <TouchableOpacity
           disabled={busy}
           onPress={() =>
-            Alert.alert(
-              "Delete Account",
-              "This will permanently remove your data. Continue?",
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: doDeleteAccount },
-              ]
-            )
+            Alert.alert("Delete Account", "This will permanently remove your data. Continue?", [
+              { text: "Cancel", style: "cancel" },
+              { text: "Delete", style: "destructive", onPress: doDeleteAccount },
+            ])
           }
-          style={[
-            styles.dangerBtn,
-            { backgroundColor: theme.colors.danger, opacity: busy ? 0.6 : 1 },
-          ]}
+          style={[styles.dangerBtn, { backgroundColor: theme.colors.danger, opacity: busy ? 0.6 : 1 }]}
         >
-          <Text style={styles.dangerText}>
-            {busy ? "Deleting..." : "Delete my account"}
-          </Text>
+          <Text style={styles.dangerText}>{busy ? "Deleting..." : "Delete my account"}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Sign out */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.section, { color: theme.colors.text }]}>
-          Session
-        </Text>
-        <TouchableOpacity
-          onPress={logout}
-          style={[
-            styles.btn,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.btnText, { color: theme.colors.text }]}>
-            Sign out
-          </Text>
+      {/* Session */}
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.section, { color: theme.colors.text }]}>Session</Text>
+        <TouchableOpacity onPress={logout} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+          <Text style={[styles.btnText, { color: theme.colors.text }]}>Sign out</Text>
         </TouchableOpacity>
       </View>
 
@@ -820,14 +528,8 @@ export default function SettingsScreen() {
         visible={showWaterModal}
         onClose={() => setShowWaterModal(false)}
         times={waterTimes}
-        onAdd={() =>
-          setWaterTimes((s) =>
-            s.length < 8 ? [...s, new Date(2025, 0, 1, 21, 0)] : s
-          )
-        }
-        onRemove={(idx) =>
-          setWaterTimes((s) => s.filter((_, i) => i !== idx))
-        }
+        onAdd={() => setWaterTimes((s) => (s.length < 8 ? [...s, new Date(2025, 0, 1, 21, 0)] : s))}
+        onRemove={(idx) => setWaterTimes((s) => s.filter((_, i) => i !== idx))}
         onChange={(idx, d) => {
           if (!d) return;
           setWaterTimes((s) => {
@@ -837,14 +539,6 @@ export default function SettingsScreen() {
           });
         }}
       />
-
-      {/* Android inline picker used inside modals */}
-      {Platform.OS === "android" && androidPicker.visible && (
-        <AndroidTimePicker
-          pickerKey={androidPicker.key}
-          onClose={() => setAndroidPicker({ visible: false })}
-        />
-      )}
     </ScrollView>
   );
 }
@@ -868,40 +562,13 @@ function MealsTimesModal({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View
-          style={[
-            styles.modalBody,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-          ]}
-        >
-          <Text style={[styles.section, { color: theme.colors.text }]}>
-            Meal times
-          </Text>
-          <LabeledTime
-            label="Breakfast"
-            value={bTime}
-            onChange={(d) => onChange("b", d)}
-          />
-          <LabeledTime
-            label="Lunch"
-            value={lTime}
-            onChange={(d) => onChange("l", d)}
-          />
-          <LabeledTime
-            label="Dinner"
-            value={dTime}
-            onChange={(d) => onChange("d", d)}
-          />
-          <TouchableOpacity
-            onPress={onClose}
-            style={[
-              styles.apply,
-              { backgroundColor: theme.colors.primary, marginTop: 8 },
-            ]}
-          >
-            <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-              Done
-            </Text>
+        <View style={[styles.modalBody, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.section, { color: theme.colors.text }]}>Meal times</Text>
+          <LabeledTime label="Breakfast" value={bTime} onChange={(d) => onChange("b", d)} />
+          <LabeledTime label="Lunch" value={lTime} onChange={(d) => onChange("l", d)} />
+          <LabeledTime label="Dinner" value={dTime} onChange={(d) => onChange("d", d)} />
+          <TouchableOpacity onPress={onClose} style={[styles.apply, { backgroundColor: theme.colors.primary, marginTop: 8 }]}>
+            <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Done</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -928,61 +595,24 @@ function WaterTimesModal({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View
-          style={[
-            styles.modalBody,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-          ]}
-        >
-          <Text style={[styles.section, { color: theme.colors.text }]}>
-            Water times
-          </Text>
+        <View style={[styles.modalBody, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.section, { color: theme.colors.text }]}>Water times</Text>
           {times.map((t, i) => (
             <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <View style={{ flex: 1 }}>
-                <LabeledTime
-                  label={`Reminder #${i + 1}`}
-                  value={t}
-                  onChange={(d) => onChange(i, d)}
-                />
+                <LabeledTime label={`Reminder #${i + 1}`} value={t} onChange={(d) => onChange(i, d)} />
               </View>
-              <TouchableOpacity
-                onPress={() => onRemove(i)}
-                style={[
-                  styles.smallBtn,
-                  {
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
+              <TouchableOpacity onPress={() => onRemove(i)} style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
                 <Text style={{ color: theme.colors.text }}>Remove</Text>
               </TouchableOpacity>
             </View>
           ))}
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <TouchableOpacity
-              onPress={onAdd}
-              style={[
-                styles.smallBtn,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
+            <TouchableOpacity onPress={onAdd} style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
               <Text style={{ color: theme.colors.text }}>Add time</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onClose}
-              style={[
-                styles.apply,
-                { backgroundColor: theme.colors.primary, flex: 1 },
-              ]}
-            >
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                Done
-              </Text>
+            <TouchableOpacity onPress={onClose} style={[styles.apply, { backgroundColor: theme.colors.primary, flex: 1 }]}>
+              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -991,19 +621,10 @@ function WaterTimesModal({
   );
 }
 
-function LabeledTime({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Date;
-  onChange: (d?: Date) => void;
-}) {
+function LabeledTime({ label, value, onChange }: { label: string; value: Date; onChange: (d?: Date) => void }) {
   const { theme } = useTheme();
   const [local, setLocal] = useState<Date>(value);
   useEffect(() => setLocal(value), [value]);
-
   return (
     <View style={{ marginBottom: 8 }}>
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
@@ -1022,90 +643,19 @@ function LabeledTime({
   );
 }
 
-function AndroidTimePicker({
-  pickerKey,
-  onClose,
-}: {
-  pickerKey?: string;
-  onClose: () => void;
-}) {
-  const { theme } = useTheme();
-  return (
-    <View
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: theme.colors.surface,
-      }}
-    >
-      <DateTimePicker
-        value={new Date()}
-        mode="time"
-        is24Hour
-        display="clock"
-        onChange={(_, d) => {
-          onClose();
-        }}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   title: { fontFamily: fonts.bold, fontSize: 20, marginBottom: 8 },
   card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   section: { fontFamily: fonts.semiBold, fontSize: 16, marginBottom: 8 },
   label: { fontFamily: fonts.semiBold, fontSize: 13, marginBottom: 6 },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
-    fontFamily: fonts.regular,
-    marginBottom: 8,
-  },
-  btn: {
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-  },
+  input: { borderRadius: 10, borderWidth: 1, padding: 12, fontFamily: fonts.regular, marginBottom: 8 },
+  btn: { paddingVertical: 10, borderRadius: 10, borderWidth: 1, alignItems: "center" },
   btnText: { fontFamily: fonts.semiBold },
-  apply: {
-    marginTop: 10,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  dangerBtn: {
-    marginTop: 10,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-  },
+  apply: { marginTop: 10, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  dangerBtn: { marginTop: 10, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
   dangerText: { fontFamily: fonts.semiBold, color: "#fff" },
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  smallBtn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  modalBody: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderTopWidth: 1,
-    padding: 16,
-  },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
+  modalBody: { borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: 1, padding: 16 },
 });

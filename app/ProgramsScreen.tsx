@@ -27,7 +27,6 @@ import { useAuth } from "../src/context/AuthContext";
 import {
   getExerciseFavorites,
   toggleExerciseFavorite,
-  isExerciseFavorite,
 } from "../src/utils/exerciseFavorites";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -76,15 +75,13 @@ export default function ProgramsScreen() {
     };
   }, [query]);
 
-  const filtered =
-    favoritesOnly && favNames.length
-      ? results.filter((e) => favNames.includes(e.name.toLowerCase()))
-      : results;
+  const filtered = useMemo(() => {
+    if (!favoritesOnly) return results;
+    if (!favNames.length) return [];
+    return results.filter((e) => favNames.includes(e.name.toLowerCase()));
+  }, [results, favoritesOnly, favNames]);
 
-  const sections = useMemo(
-    () => groupByPrimaryMuscle(filtered),
-    [filtered]
-  );
+  const sections = useMemo(() => groupByPrimaryMuscle(filtered), [filtered]);
 
   const addToBuilder = useCallback(
     async (e: Exercise) => {
@@ -96,7 +93,7 @@ export default function ProgramsScreen() {
     [h, nav, toast, uid]
   );
 
-  const toggleFav = useCallback(
+  const onToggleFav = useCallback(
     async (e: Exercise) => {
       const nowFav = await toggleExerciseFavorite(uid, { name: e.name, id: e.id });
       const next = await getExerciseFavorites(uid);
@@ -131,7 +128,10 @@ export default function ProgramsScreen() {
             )}
           </View>
           <View style={{ gap: 6, alignItems: "center" }}>
-            <TouchableOpacity onPress={() => toggleFav(item)} accessibilityLabel="Toggle favorite">
+            <TouchableOpacity
+              onPress={() => onToggleFav(item)}
+              accessibilityLabel="Toggle favorite"
+            >
               <Ionicons name={fav ? "star" : "star-outline"} size={20} color={fav ? "#F4C20D" : theme.colors.text} />
             </TouchableOpacity>
             <TouchableOpacity
@@ -144,7 +144,7 @@ export default function ProgramsScreen() {
         </View>
       );
     },
-    [addToBuilder, favNames, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted, toggleFav]
+    [addToBuilder, onToggleFav, favNames, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted]
   );
 
   return (
@@ -165,7 +165,13 @@ export default function ProgramsScreen() {
           value={query}
           onChangeText={setQuery}
           autoFocus={Platform.OS !== "web"}
+          returnKeyType="search"
         />
+        {!!query && (
+          <TouchableOpacity onPress={() => setQuery("")} accessibilityLabel="Clear search">
+            <Ionicons name="close-circle" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Text style={{ color: theme.colors.text }}>Favorites</Text>
           <Switch value={favoritesOnly} onValueChange={setFavoritesOnly} />
@@ -175,7 +181,9 @@ export default function ProgramsScreen() {
       {loading ? (
         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>Searching…</Text>
       ) : sections.length === 0 ? (
-        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>Try “bench press”, “squat”, “plank”…</Text>
+        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+          {query ? "No matches." : "Try “bench press”, “squat”, “plank”…"}
+        </Text>
       ) : (
         <SectionList
           sections={sections}

@@ -37,20 +37,30 @@ export default function LibraryScreen() {
   const { theme } = useTheme();
   const toast = useToast();
   const h = useHaptics();
-
   const { user } = useAuth();
   const { addMeal, addWorkout } = useActivity();
 
   const [tab, setTab] = useState<TabKey>("favorites");
 
   const [favorites, setFavorites] = useState<
-    { id: string; name: string; calories: number; protein: number; carbs: number; fat: number; type: MealType }[]
+    {
+      id: string;
+      name: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      type: MealType;
+    }[]
   >([]);
   const [myFoods, setMyFoods] = useState<FoodItem[]>([]);
   const [myExercises, setMyExercises] = useState<Exercise[]>([]);
 
   const [grams, setGrams] = useState<number>(200);
   const [mealType, setMealType] = useState<MealType>("lunch");
+  const [qFav, setQFav] = useState("");
+  const [qFood, setQFood] = useState("");
+  const [qEx, setQEx] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -84,7 +94,7 @@ export default function LibraryScreen() {
 
   const gramChips = useMemo(() => [100, 150, 200, 250, 300, 400], []);
 
-  const logFavorite = async (f: typeof favorites[number]) => {
+  const logFavorite = async (f: (typeof favorites)[number]) => {
     await addMeal({
       name: f.name,
       type: f.type,
@@ -136,11 +146,29 @@ export default function LibraryScreen() {
     toast.info("Exercise removed");
   };
 
+  const filteredFavs = useMemo(() => {
+    const s = qFav.trim().toLowerCase();
+    return s ? favorites.filter((f) => f.name.toLowerCase().includes(s)) : favorites;
+  }, [favorites, qFav]);
+
+  const filteredFoods = useMemo(() => {
+    const s = qFood.trim().toLowerCase();
+    return s ? myFoods.filter((f) => f.name.toLowerCase().includes(s)) : myFoods;
+  }, [myFoods, qFood]);
+
+  const filteredEx = useMemo(() => {
+    const s = qEx.trim().toLowerCase();
+    return s
+      ? myExercises.filter((e) => e.name.toLowerCase().includes(s))
+      : myExercises;
+  }, [myExercises, qEx]);
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <Text style={[styles.title, { color: theme.colors.text }]}>Library</Text>
       <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
@@ -164,12 +192,28 @@ export default function LibraryScreen() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             Favorites
           </Text>
-          {favorites.length === 0 ? (
+
+          <TextInput
+            style={[
+              styles.search,
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Filter favorites"
+            placeholderTextColor={theme.colors.textMuted}
+            value={qFav}
+            onChangeText={setQFav}
+          />
+
+          {filteredFavs.length === 0 ? (
             <Text style={{ color: theme.colors.textMuted }}>
-              You haven’t saved any favorites yet.
+              {qFav ? "No favorites match your filter." : "No favorites yet."}
             </Text>
           ) : (
-            favorites.map((f) => (
+            filteredFavs.map((f) => (
               <View
                 key={f.id}
                 style={[
@@ -182,11 +226,15 @@ export default function LibraryScreen() {
                     {f.name}
                   </Text>
                   <Text style={{ color: theme.colors.textMuted }}>
-                    {f.type} • {Math.round(f.calories)} kcal • P{f.protein} C{f.carbs} F{f.fat}
+                    {f.type} • {Math.round(f.calories)} kcal • P{f.protein} C
+                    {f.carbs} F{f.fat}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.logBtn, { backgroundColor: theme.colors.primary }]}
+                  style={[
+                    styles.logBtn,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
                   onPress={() => logFavorite(f)}
                 >
                   <Ionicons name="add" size={18} color="#fff" />
@@ -203,6 +251,21 @@ export default function LibraryScreen() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             My Foods
           </Text>
+
+          <TextInput
+            style={[
+              styles.search,
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Filter foods"
+            placeholderTextColor={theme.colors.textMuted}
+            value={qFood}
+            onChangeText={setQFood}
+          />
 
           <View style={styles.controlsRow}>
             <View style={{ flex: 1 }}>
@@ -245,7 +308,11 @@ export default function LibraryScreen() {
             </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, marginBottom: 8 }}
+          >
             {gramChips.map((g) => (
               <TouchableOpacity
                 key={g}
@@ -258,19 +325,24 @@ export default function LibraryScreen() {
                   },
                 ]}
               >
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontFamily: fonts.semiBold,
+                  }}
+                >
                   {g}g
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {myFoods.length === 0 ? (
+          {filteredFoods.length === 0 ? (
             <Text style={{ color: theme.colors.textMuted }}>
-              You haven’t added any custom foods yet.
+              {qFood ? "No foods match your filter." : "No custom foods yet."}
             </Text>
           ) : (
-            myFoods.map((f) => {
+            filteredFoods.map((f) => {
               const s = scaleFromServing(f);
               return (
                 <View
@@ -281,15 +353,21 @@ export default function LibraryScreen() {
                   ]}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.itemName, { color: theme.colors.text }]}>
+                    <Text
+                      style={[styles.itemName, { color: theme.colors.text }]}
+                    >
                       {f.name}
                     </Text>
                     <Text style={{ color: theme.colors.textMuted }}>
-                      Base: {f.serving} • {grams} g → {s.calories} kcal • P{s.protein} C{s.carbs} F{s.fat}
+                      Base: {f.serving} • {grams} g → {s.calories} kcal • P{s.protein} C
+                      {s.carbs} F{s.fat}
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
+                    style={[
+                      styles.smallBtn,
+                      { backgroundColor: theme.colors.primary },
+                    ]}
                     onPress={() => logCustomFood(f)}
                   >
                     <Text style={styles.smallBtnText}>Log</Text>
@@ -299,7 +377,11 @@ export default function LibraryScreen() {
                     onPress={() =>
                       Alert.alert("Delete", "Remove this custom food?", [
                         { text: "Cancel" },
-                        { text: "Delete", style: "destructive", onPress: () => removeCustomFood(f) },
+                        {
+                          text: "Delete",
+                          style: "destructive",
+                          onPress: () => removeCustomFood(f),
+                        },
                       ])
                     }
                   >
@@ -317,12 +399,30 @@ export default function LibraryScreen() {
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
             My Exercises
           </Text>
-          {myExercises.length === 0 ? (
+
+          <TextInput
+            style={[
+              styles.search,
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Filter exercises"
+            placeholderTextColor={theme.colors.textMuted}
+            value={qEx}
+            onChangeText={setQEx}
+          />
+
+          {filteredEx.length === 0 ? (
             <Text style={{ color: theme.colors.textMuted }}>
-              You haven’t saved any custom exercises yet.
+              {qEx
+                ? "No exercises match your filter."
+                : "You haven’t saved any custom exercises yet."}
             </Text>
           ) : (
-            myExercises.map((e) => (
+            filteredEx.map((e) => (
               <View
                 key={e.id}
                 style={[
@@ -331,15 +431,21 @@ export default function LibraryScreen() {
                 ]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.itemName, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.itemName, { color: theme.colors.text }]}
+                  >
                     {e.name}
                   </Text>
                   <Text style={{ color: theme.colors.textMuted }}>
-                    {e.category || "General"} • {(e.equipment || []).join(", ") || "Bodyweight"}
+                    {e.category || "General"} •{" "}
+                    {(e.equipment || []).join(", ") || "Bodyweight"}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}
+                  style={[
+                    styles.smallBtn,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
                   onPress={() => logCustomExercise(e)}
                 >
                   <Text style={styles.smallBtnText}>Log</Text>
@@ -347,7 +453,7 @@ export default function LibraryScreen() {
                 <TouchableOpacity
                   style={[styles.smallBtn, { backgroundColor: "#FF6B6B" }]}
                   onPress={() =>
-                    Alert.alert("Delete", "Remove this custom exercise?", [
+                    Alert.alert("Delete", "Remove this exercise?", [
                       { text: "Cancel" },
                       {
                         text: "Delete",
@@ -372,14 +478,42 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontFamily: fonts.bold },
   subtitle: { fontFamily: fonts.regular, marginTop: 6 },
   sectionTitle: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 8 },
-  controlsRow: { flexDirection: "row", gap: 12, alignItems: "flex-start", marginBottom: 8 },
+  controlsRow: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+    marginBottom: 8,
+    marginTop: 4,
+  },
   label: { fontFamily: fonts.semiBold, marginBottom: 6 },
-  chip: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1 },
-  itemRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, gap: 8 },
+  chip: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 8,
+  },
   itemName: { fontSize: 16, fontFamily: fonts.semiBold },
-  logBtn: { borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6 },
+  logBtn: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   logBtnText: { color: "#fff", fontFamily: fonts.semiBold },
-  smallBtn: { borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
+  smallBtn: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
   smallBtnText: { color: "#fff", fontFamily: fonts.semiBold, fontSize: 12 },
   gramInput: {
     borderRadius: 10,
@@ -387,5 +521,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: fonts.regular,
+  },
+  search: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: fonts.regular,
+    marginBottom: 8,
   },
 });

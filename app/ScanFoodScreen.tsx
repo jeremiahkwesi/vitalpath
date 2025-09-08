@@ -12,7 +12,6 @@ import {
   Platform,
 } from "react-native";
 import Constants from "expo-constants";
-// Lazy import barcode scanner only if needed
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { Ionicons } from "@expo/vector-icons";
@@ -76,7 +75,6 @@ export default function ScanFoodScreen() {
       setBarcodeError(null);
       if (mode !== "barcode") return;
       if (isExpoGo) {
-        // In Expo Go, hide barcode and prompt user to use Photo mode or dev build
         setBarcodeScanner(null);
         setHasPermission(null);
         setBarcodeError(
@@ -214,6 +212,15 @@ export default function ScanFoodScreen() {
   };
 
   // Photo pick/capture
+  const resetPhoto = () => {
+    setImgUri(null);
+    setAnalysis(null);
+    setShowQuickEdit(false);
+    setBaseGrams(null);
+    setPortionGrams(null);
+    setShowBreakdown(false);
+  };
+
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -281,8 +288,10 @@ export default function ScanFoodScreen() {
     }
   };
 
+  const { addMeal: addMealCtx } = useActivity();
+
   const saveQuick = async (m: QuickMeal) => {
-    await addMeal({
+    await addMealCtx({
       name: m.name,
       type: m.type,
       calories: Math.round(m.calories || 0),
@@ -294,8 +303,7 @@ export default function ScanFoodScreen() {
       micros: {},
     });
     setShowQuickEdit(false);
-    setImgUri(null);
-    setAnalysis(null);
+    resetPhoto();
     h.success();
     toast.success(`${m.name} logged to ${m.type}`);
   };
@@ -340,12 +348,23 @@ export default function ScanFoodScreen() {
         <Text style={[styles.title, { color: theme.colors.text }]}>
           Scan Meal or Barcode
         </Text>
+        {imgUri || analysis ? (
+          <TouchableOpacity
+            onPress={resetPhoto}
+            accessibilityLabel="Reset photo"
+          >
+            <Text
+              style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}
+            >
+              Reset
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={{ marginBottom: 12 }}>
         <Segmented
           items={[
-            // Hide barcode in Expo Go; always show in dev/Xcode/dev client
             ...(!isExpoGo ? [{ label: "Barcode", value: "barcode" }] : []),
             { label: "Photo", value: "photo" },
           ]}
@@ -357,7 +376,7 @@ export default function ScanFoodScreen() {
       {mode === "barcode" ? (
         <>
           {!BarcodeScanner ? (
-            <View style={styles.center}>
+            <View className="center" style={styles.center}>
               <Text style={{ color: theme.colors.text }}>
                 {barcodeError ||
                   "Loading scanner… If it doesn’t load, use Photo mode or a development build."}
@@ -371,9 +390,7 @@ export default function ScanFoodScreen() {
             </View>
           ) : hasPermission === false ? (
             <View style={styles.center}>
-              <Text style={{ color: theme.colors.text }}>
-                No access to camera
-              </Text>
+              <Text style={{ color: theme.colors.text }}>No access to camera</Text>
               <Text style={{ color: theme.colors.textMuted }}>
                 Grant camera permission in settings.
               </Text>
@@ -397,7 +414,10 @@ export default function ScanFoodScreen() {
                 )}
               </View>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.colors.primary }]}
+                style={[
+                  styles.button,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 onPress={() => setScanned(false)}
                 disabled={!scanned}
                 accessibilityLabel="Scan again"
@@ -447,7 +467,10 @@ export default function ScanFoodScreen() {
             <TouchableOpacity
               style={[
                 styles.actionBtn,
-                { backgroundColor: theme.colors.primary, opacity: imgUri ? 1 : 0.5 },
+                {
+                  backgroundColor: theme.colors.primary,
+                  opacity: imgUri ? 1 : 0.5,
+                },
               ]}
               onPress={analyzeCurrentImage}
               disabled={!imgUri || analyzing}
@@ -466,8 +489,12 @@ export default function ScanFoodScreen() {
               {analyzing ? (
                 <View style={{ gap: 8 }}>
                   <SkeletonBlock style={{ height: 220, borderRadius: 8 }} />
-                  <SkeletonBlock style={{ height: 16, width: "60%", borderRadius: 8 }} />
-                  <SkeletonBlock style={{ height: 12, width: "40%", borderRadius: 8 }} />
+                  <SkeletonBlock
+                    style={{ height: 16, width: "60%", borderRadius: 8 }}
+                  />
+                  <SkeletonBlock
+                    style={{ height: 12, width: "40%", borderRadius: 8 }}
+                  />
                 </View>
               ) : (
                 <Image
@@ -483,19 +510,26 @@ export default function ScanFoodScreen() {
               <Text style={[styles.resultTitle, { color: theme.colors.text }]}>
                 {analysis.name}
               </Text>
-              <Text style={[styles.resultMeta, { color: theme.colors.textMuted }]}>
+              <Text
+                style={[styles.resultMeta, { color: theme.colors.textMuted }]}
+              >
                 {analysis.serving}
                 {portionGrams ? ` (adjusted: ${portionGrams} g)` : ""}
               </Text>
 
               <View style={styles.portionRow}>
-                <Text style={[styles.portionLabel, { color: theme.colors.text }]}>
+                <Text
+                  style={[styles.portionLabel, { color: theme.colors.text }]}
+                >
                   Portion:
                 </Text>
                 <TouchableOpacity
                   style={[
                     styles.portionBtn,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.surface2,
+                    },
                   ]}
                   onPress={() =>
                     setPortionGrams((p) =>
@@ -505,14 +539,19 @@ export default function ScanFoodScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Decrease portion by 10 grams"
                 >
-                  <Text style={[styles.portionBtnText, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.portionBtnText, { color: theme.colors.text }]}
+                  >
                     -10g
                   </Text>
                 </TouchableOpacity>
                 <View
                   style={[
                     styles.portionInputWrap,
-                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+                    {
+                      backgroundColor: theme.colors.surface2,
+                      borderColor: theme.colors.border,
+                    },
                   ]}
                 >
                   <TextInput
@@ -537,14 +576,19 @@ export default function ScanFoodScreen() {
                     placeholderTextColor={theme.colors.textMuted}
                     accessibilityLabel="Portion in grams"
                   />
-                  <Text style={[styles.portionUnit, { color: theme.colors.textMuted }]}>
+                  <Text
+                    style={[styles.portionUnit, { color: theme.colors.textMuted }]}
+                  >
                     g
                   </Text>
                 </View>
                 <TouchableOpacity
                   style={[
                     styles.portionBtn,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.surface2,
+                    },
                   ]}
                   onPress={() =>
                     setPortionGrams((p) =>
@@ -554,7 +598,9 @@ export default function ScanFoodScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Increase portion by 10 grams"
                 >
-                  <Text style={[styles.portionBtnText, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.portionBtnText, { color: theme.colors.text }]}
+                  >
                     +10g
                   </Text>
                 </TouchableOpacity>
@@ -582,7 +628,10 @@ export default function ScanFoodScreen() {
                 <TouchableOpacity
                   style={[
                     styles.breakdownBtn,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surface2 },
+                    {
+                      borderColor: theme.colors.border,
+                      backgroundColor: theme.colors.surface2,
+                    },
                   ]}
                   onPress={() => setShowBreakdown((s) => !s)}
                   accessibilityRole="button"
@@ -600,10 +649,17 @@ export default function ScanFoodScreen() {
                 <View style={styles.breakdownList}>
                   {breakdown.map((it, idx) => (
                     <View key={`${it.name}-${idx}`} style={styles.breakdownRow}>
-                      <Text style={[styles.breakdownName, { color: theme.colors.text }]}>
+                      <Text
+                        style={[styles.breakdownName, { color: theme.colors.text }]}
+                      >
                         • {it.name} ({it.grams} g)
                       </Text>
-                      <Text style={[styles.breakdownMeta, { color: theme.colors.textMuted }]}>
+                      <Text
+                        style={[
+                          styles.breakdownMeta,
+                          { color: theme.colors.textMuted },
+                        ]}
+                      >
                         {it.calories} kcal — P{it.protein} C{it.carbs} F{it.fat}
                       </Text>
                     </View>
@@ -616,7 +672,10 @@ export default function ScanFoodScreen() {
                   (t) => (
                     <TouchableOpacity
                       key={t}
-                      style={[styles.addTypeBtn, { backgroundColor: theme.colors.primary }]}
+                      style={[
+                        styles.addTypeBtn,
+                        { backgroundColor: theme.colors.primary },
+                      ]}
                       onPress={() =>
                         saveQuick({
                           name: analysis.name,
@@ -648,7 +707,10 @@ export default function ScanFoodScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.colors.primary, marginTop: 8 }]}
+                style={[
+                  styles.button,
+                  { backgroundColor: theme.colors.primary, marginTop: 8 },
+                ]}
                 onPress={() => setShowQuickEdit(true)}
               >
                 <Text style={styles.buttonText}>Quick Edit</Text>
@@ -660,7 +722,11 @@ export default function ScanFoodScreen() {
             <Text
               style={[
                 styles.gray,
-                { color: theme.colors.textMuted, textAlign: "center", marginTop: 12 },
+                {
+                  color: theme.colors.textMuted,
+                  textAlign: "center",
+                  marginTop: 12,
+                },
               ]}
             >
               Pick or take a photo of a meal to analyze its nutrition.
@@ -675,15 +741,11 @@ export default function ScanFoodScreen() {
         initial={{
           name: analysis?.name || "Meal",
           serving: analysis?.serving,
-          calories: Math.round(
-            displayTotals?.calories || analysis?.calories || 0
-          ),
+          calories: Math.round(displayTotals?.calories || analysis?.calories || 0),
           protein: Math.round(
             displayTotals?.protein || analysis?.macros.protein || 0
           ),
-          carbs: Math.round(
-            displayTotals?.carbs || analysis?.macros.carbs || 0
-          ),
+          carbs: Math.round(displayTotals?.carbs || analysis?.macros.carbs || 0),
           fat: Math.round(displayTotals?.fat || analysis?.macros.fat || 0),
         }}
         onSave={saveQuick}
@@ -694,7 +756,12 @@ export default function ScanFoodScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    justifyContent: "space-between",
+  },
   title: { fontSize: 22, fontFamily: fonts.bold },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   gray: { fontFamily: fonts.regular },

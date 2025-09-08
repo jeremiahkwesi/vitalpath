@@ -1,5 +1,5 @@
 // app/PantryScreen.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ export default function PantryScreen() {
   const [name, setName] = useState("");
   const [grams, setGrams] = useState("");
   const [count, setCount] = useState("");
+  const [q, setQ] = useState("");
 
   const load = async () => {
     if (!user?.uid) return;
@@ -68,31 +69,54 @@ export default function PantryScreen() {
     load();
   };
 
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return s ? items.filter((i) => i.name.toLowerCase().includes(s)) : items;
+  }, [items, q]);
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.header, { color: theme.colors.text }]}>
-        Pantry
-      </Text>
+      <Text style={[styles.header, { color: theme.colors.text }]}>Pantry</Text>
       <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
         Track what you already have; grocery lists will subtract these.
       </Text>
 
+      <TextInput
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.colors.surface2,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          },
+        ]}
+        placeholder="Filter pantry (e.g., rice)"
+        placeholderTextColor={theme.colors.textMuted}
+        value={q}
+        onChangeText={setQ}
+      />
+
       <View
         style={[
           styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
         ]}
       >
         <Text style={[styles.sub, { color: theme.colors.text }]}>Add item</Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <TextInput
             style={[
               styles.input,
               {
                 flex: 1,
+                minWidth: 140,
                 backgroundColor: theme.colors.surface2,
                 borderColor: theme.colors.border,
                 color: theme.colors.text,
@@ -107,7 +131,7 @@ export default function PantryScreen() {
             style={[
               styles.input,
               {
-                width: 100,
+                width: 110,
                 backgroundColor: theme.colors.surface2,
                 borderColor: theme.colors.border,
                 color: theme.colors.text,
@@ -123,7 +147,7 @@ export default function PantryScreen() {
             style={[
               styles.input,
               {
-                width: 100,
+                width: 110,
                 backgroundColor: theme.colors.surface2,
                 borderColor: theme.colors.border,
                 color: theme.colors.text,
@@ -139,7 +163,10 @@ export default function PantryScreen() {
             onPress={add}
             style={[
               styles.btn,
-              { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+              {
+                backgroundColor: theme.colors.primary,
+                borderColor: theme.colors.primary,
+              },
             ]}
           >
             <Text style={styles.btnTextLight}>Add</Text>
@@ -147,7 +174,7 @@ export default function PantryScreen() {
         </View>
       </View>
 
-      {items.map((it) => (
+      {filtered.map((it) => (
         <View
           key={it.id}
           style={[
@@ -156,33 +183,33 @@ export default function PantryScreen() {
           ]}
         >
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>{it.name}</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              {it.name}
+            </Text>
             <Text style={{ color: theme.colors.textMuted }}>
-              {it.grams ? `${it.grams} g` : ""} {it.count ? `• ${it.count} pcs` : ""}
+              {it.grams ? `${it.grams} g` : ""}{" "}
+              {it.count ? `• ${it.count} pcs` : ""}
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() =>
-              update(it, {
-                grams: Math.max(0, (it.grams || 0) - 100),
-              })
-            }
+            onPress={() => update(it, { grams: Math.max(0, (it.grams || 0) - 100) })}
             style={[styles.smallBtn, { backgroundColor: "#FFCC80", borderColor: "#FFCC80" }]}
           >
             <Text style={styles.btnTextDark}>-100g</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() =>
-              update(it, {
-                grams: (it.grams || 0) + 100,
-              })
-            }
+            onPress={() => update(it, { grams: (it.grams || 0) + 100 })}
             style={[styles.smallBtn, { backgroundColor: "#80CBC4", borderColor: "#80CBC4" }]}
           >
             <Text style={styles.btnTextDark}>+100g</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => remove(it)}
+            onPress={() =>
+              Alert.alert("Delete", "Remove this item?", [
+                { text: "Cancel" },
+                { text: "Delete", style: "destructive", onPress: () => remove(it) },
+              ])
+            }
             style={[styles.smallBtn, { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" }]}
           >
             <Text style={styles.btnTextLight}>Delete</Text>
@@ -197,10 +224,29 @@ const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
   sub: { fontFamily: fonts.semiBold, marginBottom: 6 },
   card: { borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular },
-  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, alignItems: "center" },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    fontFamily: fonts.regular,
+  },
+  btn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
   btnTextLight: { color: "#fff", fontFamily: fonts.semiBold },
   btnTextDark: { color: "#000", fontFamily: fonts.semiBold },
-  row: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 10, flexDirection: "row", alignItems: "center", gap: 8 },
+  row: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
 });

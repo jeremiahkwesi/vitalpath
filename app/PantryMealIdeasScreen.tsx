@@ -1,5 +1,5 @@
 // app/PantryMealIdeasScreen.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -15,10 +15,7 @@ import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
 import { useActivity } from "../src/context/ActivityContext";
 import { listPantry } from "../src/services/pantry";
-import {
-  getPantryMealIdeasAI,
-  PantryIdea,
-} from "../src/services/healthAI";
+import { getPantryMealIdeasAI, PantryIdea } from "../src/services/healthAI";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -34,10 +31,10 @@ export default function PantryMealIdeasScreen() {
   const [loading, setLoading] = useState(false);
   const [mealType, setMealType] = useState<MealType>("lunch");
 
-  const [quickLog, setQuickLog] = useState<{
-    open: boolean;
-    name: string;
-  }>({ open: false, name: "" });
+  const [quickLog, setQuickLog] = useState<{ open: boolean; name: string }>({
+    open: false,
+    name: "",
+  });
   const [cal, setCal] = useState("");
   const [p, setP] = useState("");
   const [c, setC] = useState("");
@@ -50,12 +47,19 @@ export default function PantryMealIdeasScreen() {
     return {
       caloriesRemaining: mr,
       macrosRemaining: {
-        protein:
-          Math.max(0, (userProfile?.macros?.protein || 0) - (todayActivity?.macros.protein || 0)),
-        carbs:
-          Math.max(0, (userProfile?.macros?.carbs || 0) - (todayActivity?.macros.carbs || 0)),
-        fat:
-          Math.max(0, (userProfile?.macros?.fat || 0) - (todayActivity?.macros.fat || 0)),
+        protein: Math.max(
+          0,
+          (userProfile?.macros?.protein || 0) -
+            (todayActivity?.macros.protein || 0)
+        ),
+        carbs: Math.max(
+          0,
+          (userProfile?.macros?.carbs || 0) - (todayActivity?.macros.carbs || 0)
+        ),
+        fat: Math.max(
+          0,
+          (userProfile?.macros?.fat || 0) - (todayActivity?.macros.fat || 0)
+        ),
       },
     };
   }, [todayActivity, userProfile]);
@@ -118,12 +122,13 @@ export default function PantryMealIdeasScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       <Text style={[styles.header, { color: theme.colors.text }]}>
         AI Pantry → Meals
       </Text>
       <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Uses your Pantry first and today’s remaining macros to propose meals.
+        Uses your Pantry and remaining macros to propose meal ideas.
       </Text>
 
       <View
@@ -151,11 +156,15 @@ export default function PantryMealIdeasScreen() {
         />
         <TouchableOpacity
           onPress={generate}
+          disabled={loading}
           style={[
             styles.btn,
-            { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+            {
+              backgroundColor: theme.colors.primary,
+              borderColor: theme.colors.primary,
+              opacity: loading ? 0.7 : 1,
+            },
           ]}
-          disabled={loading}
         >
           <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
             {loading ? "Generating…" : "Generate ideas"}
@@ -171,9 +180,7 @@ export default function PantryMealIdeasScreen() {
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
           ]}
         >
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            {idea.title}
-          </Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>{idea.title}</Text>
           {!!(idea.description || []).length &&
             idea.description.map((d, i) => (
               <Text key={i} style={{ color: theme.colors.textMuted }}>
@@ -209,18 +216,16 @@ export default function PantryMealIdeasScreen() {
               {idea.nutrition.carbs} F{idea.nutrition.fat}
             </Text>
           )}
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 8, alignItems: "center" }}>
             <MealTypePicker value={mealType} onChange={setMealType} />
             <TouchableOpacity
-              onPress={() =>
-                setQuickLog({
-                  open: true,
-                  name: idea.title,
-                })
-              }
+              onPress={() => setQuickLog({ open: true, name: idea.title })}
               style={[
                 styles.smallBtn,
-                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                },
               ]}
             >
               <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
@@ -231,7 +236,12 @@ export default function PantryMealIdeasScreen() {
         </View>
       ))}
 
-      <Modal visible={quickLog.open} transparent animationType="slide" onRequestClose={() => setQuickLog({ open: false, name: "" })}>
+      <Modal
+        visible={quickLog.open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setQuickLog({ open: false, name: "" })}
+      >
         <View
           style={{
             flex: 1,
@@ -250,10 +260,24 @@ export default function PantryMealIdeasScreen() {
               maxHeight: "88%",
             }}
           >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={[styles.header, { color: theme.colors.text }]}>Quick log</Text>
-              <TouchableOpacity onPress={() => setQuickLog({ open: false, name: "" })}>
-                <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>Close</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={[styles.header, { color: theme.colors.text }]}>
+                Quick log
+              </Text>
+              <TouchableOpacity
+                onPress={() => setQuickLog({ open: false, name: "" })}
+              >
+                <Text
+                  style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}
+                >
+                  Close
+                </Text>
               </TouchableOpacity>
             </View>
             <Text style={{ color: theme.colors.text, marginBottom: 4 }}>
@@ -331,10 +355,15 @@ export default function PantryMealIdeasScreen() {
               onPress={log}
               style={[
                 styles.btn,
-                { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+                {
+                  backgroundColor: theme.colors.primary,
+                  borderColor: theme.colors.primary,
+                },
               ]}
             >
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Add to diary</Text>
+              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+                Add to diary
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -395,7 +424,26 @@ const styles = StyleSheet.create({
   card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   label: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular, marginBottom: 8 },
-  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
-  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, alignSelf: "flex-start", marginTop: 6 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    fontFamily: fonts.regular,
+    marginBottom: 8,
+  },
+  btn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  smallBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
 });
