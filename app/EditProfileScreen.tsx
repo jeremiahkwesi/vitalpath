@@ -1,4 +1,3 @@
-// app/EditProfileScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -15,6 +14,7 @@ import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
 import Select from "../src/ui/components/Select";
+import { Card, SectionHeader } from "../src/ui/components/UKit";
 
 export default function EditProfileScreen() {
   const { theme } = useTheme();
@@ -83,15 +83,10 @@ export default function EditProfileScreen() {
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>Edit Profile</Text>
+      <SectionHeader title="Edit Profile" />
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.label, { color: theme.colors.text }]}>Avatar</Text>
+      <Card>
+        <SectionHeader title="Avatar" />
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View
             style={{
@@ -105,10 +100,7 @@ export default function EditProfileScreen() {
             }}
           >
             {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={{ width: "100%", height: "100%" }}
-              />
+              <Image source={{ uri: avatarUrl }} style={{ width: "100%", height: "100%" }} />
             ) : null}
           </View>
           <TouchableOpacity
@@ -125,41 +117,27 @@ export default function EditProfileScreen() {
           {!!avatarUrl && (
             <TouchableOpacity
               onPress={() => setAvatarUrl("")}
-              style={[
-                styles.smallBtn,
-                { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
-              ]}
+              style={[styles.smallBtn, { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" }]}
             >
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                Remove
-              </Text>
+              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Remove</Text>
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
+      <Card>
+        <SectionHeader title="Basics" />
         <Text style={[styles.label, { color: theme.colors.text }]}>Name</Text>
         <TextInput
           style={[
             styles.input,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
           ]}
           value={name}
           onChangeText={setName}
           placeholder="Full name"
           placeholderTextColor={theme.colors.textMuted}
         />
-
         <Select
           label="Gender"
           value={gender}
@@ -184,28 +162,21 @@ export default function EditProfileScreen() {
         <TextInput
           style={[
             styles.input,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
           ]}
           value={country}
           onChangeText={setCountry}
           placeholder="e.g., Ghana"
           placeholderTextColor={theme.colors.textMuted}
         />
-      </View>
+      </Card>
 
       <TouchableOpacity
         onPress={save}
         disabled={!hasChanges || busy}
         style={[
           styles.apply,
-          {
-            backgroundColor: theme.colors.primary,
-            opacity: !hasChanges || busy ? 0.7 : 1,
-          },
+          { backgroundColor: theme.colors.primary, opacity: !hasChanges || busy ? 0.7 : 1 },
         ]}
       >
         <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
@@ -215,27 +186,10 @@ export default function EditProfileScreen() {
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
-  title: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 8 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   label: { fontFamily: fonts.semiBold, marginBottom: 6 },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    fontFamily: fonts.regular,
-    marginBottom: 8,
-  },
-  apply: {
-    marginTop: 12,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  smallBtn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
+  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular, marginBottom: 8 },
+  apply: { marginTop: 12, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
 });

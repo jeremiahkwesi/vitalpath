@@ -1,4 +1,3 @@
-// app/PantryMealIdeasScreen.tsx
 import React, { useMemo, useState } from "react";
 import {
   View,
@@ -16,6 +15,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { useActivity } from "../src/context/ActivityContext";
 import { listPantry } from "../src/services/pantry";
 import { getPantryMealIdeasAI, PantryIdea } from "../src/services/healthAI";
+import { Card, SectionHeader, Pill } from "../src/ui/components/UKit";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -31,10 +31,9 @@ export default function PantryMealIdeasScreen() {
   const [loading, setLoading] = useState(false);
   const [mealType, setMealType] = useState<MealType>("lunch");
 
-  const [quickLog, setQuickLog] = useState<{ open: boolean; name: string }>({
-    open: false,
-    name: "",
-  });
+  const [quickLog, setQuickLog] = useState<{ open: boolean; name: string }>(
+    { open: false, name: "" }
+  );
   const [cal, setCal] = useState("");
   const [p, setP] = useState("");
   const [c, setC] = useState("");
@@ -124,62 +123,52 @@ export default function PantryMealIdeasScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.header, { color: theme.colors.text }]}>
-        AI Pantry → Meals
-      </Text>
-      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Uses your Pantry and remaining macros to propose meal ideas.
-      </Text>
+      <SectionHeader
+        title="AI Pantry → Meals"
+        subtitle="Use Pantry and remaining macros to generate ideas"
+      />
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
+      <Card>
         <Text style={[styles.label, { color: theme.colors.text }]}>
           Dietary preferences (comma-separated)
         </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
-          ]}
-          value={prefs}
-          onChangeText={setPrefs}
-          placeholder="e.g., high-protein, low-sodium"
-          placeholderTextColor={theme.colors.textMuted}
-        />
-        <TouchableOpacity
-          onPress={generate}
-          disabled={loading}
-          style={[
-            styles.btn,
-            {
-              backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.primary,
-              opacity: loading ? 0.7 : 1,
-            },
-          ]}
-        >
-          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-            {loading ? "Generating…" : "Generate ideas"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            value={prefs}
+            onChangeText={setPrefs}
+            placeholder="e.g., high-protein, low-sodium"
+            placeholderTextColor={theme.colors.textMuted}
+          />
+          <TouchableOpacity
+            onPress={generate}
+            disabled={loading}
+            style={[
+              styles.btn,
+              {
+                backgroundColor: theme.colors.primary,
+                borderColor: theme.colors.primary,
+                opacity: loading ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+              {loading ? "Generating…" : "Generate"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
 
       {ideas.map((idea, idx) => (
-        <View
-          key={idx}
-          style={[
-            styles.card,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-          ]}
-        >
+        <Card key={idx}>
           <Text style={[styles.title, { color: theme.colors.text }]}>{idea.title}</Text>
           {!!(idea.description || []).length &&
             idea.description.map((d, i) => (
@@ -219,13 +208,23 @@ export default function PantryMealIdeasScreen() {
           <View style={{ flexDirection: "row", gap: 8, marginTop: 8, alignItems: "center" }}>
             <MealTypePicker value={mealType} onChange={setMealType} />
             <TouchableOpacity
-              onPress={() => setQuickLog({ open: true, name: idea.title })}
+              onPress={() => {
+                setQuickLog({ open: true, name: idea.title });
+                if (idea.nutrition) {
+                  setCal(String(Math.round(idea.nutrition.calories || 0)));
+                  setP(String(Math.round(idea.nutrition.protein || 0)));
+                  setC(String(Math.round(idea.nutrition.carbs || 0)));
+                  setF(String(Math.round(idea.nutrition.fat || 0)));
+                } else {
+                  setCal("");
+                  setP("");
+                  setC("");
+                  setF("");
+                }
+              }}
               style={[
                 styles.smallBtn,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                },
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
               ]}
             >
               <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
@@ -233,7 +232,7 @@ export default function PantryMealIdeasScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Card>
       ))}
 
       <Modal
@@ -260,29 +259,15 @@ export default function PantryMealIdeasScreen() {
               maxHeight: "88%",
             }}
           >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <Text style={[styles.header, { color: theme.colors.text }]}>
-                Quick log
-              </Text>
-              <TouchableOpacity
-                onPress={() => setQuickLog({ open: false, name: "" })}
-              >
-                <Text
-                  style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}
-                >
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text style={[styles.header, { color: theme.colors.text }]}>Quick log</Text>
+              <TouchableOpacity onPress={() => setQuickLog({ open: false, name: "" })}>
+                <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>
                   Close
                 </Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ color: theme.colors.text, marginBottom: 4 }}>
-              {quickLog.name}
-            </Text>
+            <Text style={{ color: theme.colors.text, marginBottom: 4 }}>{quickLog.name}</Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TextInput
                 style={[
@@ -355,15 +340,10 @@ export default function PantryMealIdeasScreen() {
               onPress={log}
               style={[
                 styles.btn,
-                {
-                  backgroundColor: theme.colors.primary,
-                  borderColor: theme.colors.primary,
-                },
+                { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
               ]}
             >
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                Add to diary
-              </Text>
+              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Add to diary</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -421,29 +401,9 @@ function MealTypePicker({
 
 const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   label: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    fontFamily: fonts.regular,
-    marginBottom: 8,
-  },
-  btn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  smallBtn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignSelf: "flex-start",
-    marginTop: 6,
-  },
+  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular, marginBottom: 8 },
+  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: "center", marginTop: 10 },
+  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, alignSelf: "flex-start", marginTop: 6 },
 });

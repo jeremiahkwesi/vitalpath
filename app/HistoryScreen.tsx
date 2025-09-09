@@ -1,26 +1,37 @@
-// app/HistoryScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
+import { useAuth } from "../src/context/AuthContext";
+import { Card, SectionHeader, Pill, StatTile } from "../src/ui/components/UKit";
 
 type Row = {
   date: string;
-  steps: number;
-  water: number;
-  workouts: number;
-  meals: number;
-  calories: number;
+  kcal: number;
   protein: number;
   carbs: number;
   fat: number;
+  steps: number;
+  workouts: number;
+  meals: number;
 };
 
+function lastNDates(n: number): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = 0; i < n; i++) {
+    const x = new Date(d);
+    x.setDate(d.getDate() - i);
+    out.push(x.toISOString().split("T")[0]);
+  }
+  return out.reverse();
+}
+
 export default function HistoryScreen() {
-  const { user } = useAuth();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const [period, setPeriod] = useState<7 | 14 | 30>(7);
   const [rows, setRows] = useState<Row[]>([]);
 
   useEffect(() => {
@@ -28,70 +39,123 @@ export default function HistoryScreen() {
       if (!user?.uid) return;
       try {
         const keys = await AsyncStorage.getAllKeys();
-        const mine = keys.filter((k) => k.startsWith(`activity:${user.uid}:`));
-        const kv = await AsyncStorage.multiGet(mine);
-        const list: Row[] = [];
+        const my = keys.filter((k) => k.startsWith(`activity:${user.uid}:`));
+        const kv = await AsyncStorage.multiGet(my);
+        const map: Record<string, any> = {};
         for (const [, v] of kv) {
           if (!v) continue;
           const data = JSON.parse(v);
-          list.push({
-            date: data.date,
-            steps: Number(data.steps || 0),
-            water: Number(data.waterIntake || 0),
-            workouts: Array.isArray(data.workouts) ? data.workouts.length : 0,
-            meals: Array.isArray(data.meals) ? data.meals.length : 0,
-            calories: Number(data.totalCalories || 0),
-            protein: Number(data.macros?.protein || 0),
-            carbs: Number(data.macros?.carbs || 0),
-            fat: Number(data.macros?.fat || 0),
-          });
+          map[data.date] = data;
         }
-        list.sort((a, b) => (a.date < b.date ? 1 : -1));
+        const days = lastNDates(period);
+        const list: Row[] = days.map((d) => {
+          const x = map[d] || {};
+          return {
+            date: d,
+            kcal: Number(x.totalCalories || 0),
+            protein: Number(x.macros?.protein || 0),
+            carbs: Number(x.macros?.carbs || 0),
+            fat: Number(x.macros?.fat || 0),
+            steps: Number(x.steps || 0),
+            workouts: Array.isArray(x.workouts) ? x.workouts.length : 0,
+            meals: Array.isArray(x.meals) ? x.meals.length : 0,
+          };
+        });
         setRows(list);
       } catch {}
     })();
-  }, [user?.uid]);
+  }, [user?.uid, period]);
 
-  const last7 = useMemo(() => rows.slice(0, 7), [rows]);
-  const avg = (arr: number[]) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0);
-  const weekAvgKcal = avg(last7.map((r) => r.calories));
-  const weekAvgSteps = avg(last7.map((r) => r.steps));
-  const weekWorkouts = last7.reduce((a, b) => a + b.workouts, 0);
+  const avg = (arr: number[]) =>
+    arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+  const aKcal = avg(rows.map((r) => r.kcal));
+  const aProt = avg(rows.map((r) => r.protein));
+  const aCarb = avg(rows.map((r) => r.carbs));
+  const aFat = avg(rows.map((r) => r.fat));
+  const aSteps = avg(rows.map((r) => r.steps));
+  const totWorkouts = rows.reduce((a, b) => a + b.workouts, 0);
+  const mealsLogged = rows.reduce((a, b) => a + b.meals, 0);
+
+  const bestStreak = useMemo(() => {
+    let best = 0;
+    let run = 0;
+    for (const r of rows) {
+      if (r.workouts > 0 || r.meals > 0) {
+        run += 1;
+        best = Math.max(best, run);
+      } else {
+        run = 0;
+      }
+    }
+    return best;
+  }, [rows]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>History</Text>
-
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Last 7 days</Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Avg kcal: {weekAvgKcal} • Workouts: {weekWorkouts} • Avg steps: {weekAvgSteps}
-        </Text>
-      </View>
-
-      {!rows.length ? (
-        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>No history yet.</Text>
-      ) : (
-        rows.map((r) => (
-          <View key={r.date} style={[styles.item, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <Text style={[styles.date, { color: theme.colors.text }]}>{r.date}</Text>
-            <Text style={{ color: theme.colors.textMuted }}>
-              Steps: {r.steps} • Water: {r.water} ml • Workouts: {r.workouts} • Meals: {r.meals}
-            </Text>
-            <Text style={{ color: theme.colors.textMuted }}>
-              Calories: {r.calories} • P{r.protein} C{r.carbs} F{r.fat}
-            </Text>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+    >
+      <SectionHeader
+        title="History"
+        subtitle="Trends across your recent activity"
+        right={
+          <View style={{ flexDirection: "row" }}>
+            <Pill
+              label="7d"
+              selected={period === 7}
+              onPress={() => setPeriod(7)}
+            />
+            <Pill
+              label="14d"
+              selected={period === 14}
+              onPress={() => setPeriod(14)}
+            />
+            <Pill
+              label="30d"
+              selected={period === 30}
+              onPress={() => setPeriod(30)}
+            />
           </View>
-        ))
-      )}
+        }
+      />
+
+      <Card>
+        <SectionHeader title="Overview" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <StatTile icon="flame-outline" value={`${aKcal}`} label="avg kcal" />
+          <StatTile icon="barbell-outline" value={`${totWorkouts}`} label="workouts" />
+        </View>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <StatTile icon="walk-outline" value={`${aSteps}`} label="avg steps" />
+          <StatTile icon="restaurant-outline" value={`${mealsLogged}`} label="meals logged" />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader title="Macros (daily averages)" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <StatTile value={`${aProt} g`} label="Protein" />
+          <StatTile value={`${aCarb} g`} label="Carbs" />
+          <StatTile value={`${aFat} g`} label="Fat" />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader title="Best streak" />
+        <Text
+          style={{
+            color: theme.colors.text,
+            fontFamily: fonts.semiBold,
+            fontSize: 18,
+          }}
+        >
+          {bestStreak} day{bestStreak === 1 ? "" : "s"}
+        </Text>
+        <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>
+          Counted as days with at least one workout or one meal logged.
+        </Text>
+      </Card>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  title: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 8 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12 },
-  section: { fontFamily: fonts.semiBold, fontSize: 16, marginBottom: 6 },
-  item: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 10 },
-  date: { fontFamily: fonts.semiBold, marginBottom: 4 },
-});

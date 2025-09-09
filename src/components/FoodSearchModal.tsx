@@ -1,5 +1,10 @@
 // src/components/FoodSearchModal.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Modal,
   View,
@@ -12,7 +17,6 @@ import {
   ListRenderItemInfo,
   KeyboardAvoidingView,
 } from "react-native";
-import { colors as baseColors } from "../constants/colors";
 import { fonts } from "../constants/fonts";
 import { searchFoods, FoodItem, addCustomFood } from "../services/foodDb";
 import { useActivity } from "../context/ActivityContext";
@@ -23,6 +27,7 @@ import { useTheme } from "../ui/ThemeProvider";
 import { SkeletonRow } from "../ui/components/Skeleton";
 import { useToast } from "../ui/components/Toast";
 import { useHaptics } from "../ui/hooks/useHaptics";
+import { SectionHeader } from "../ui/components/UKit";
 
 type Props = { visible: boolean; onClose: () => void };
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
@@ -197,7 +202,10 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
           </View>
           <TouchableOpacity
             hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            style={[styles.btn, { backgroundColor: theme.colors.primary }]}
+            style={[
+              styles.btn,
+              { backgroundColor: theme.colors.primary },
+            ]}
             onPress={() => onAddFood(item)}
             accessibilityLabel={`Add ${item.name} to ${mealType}`}
             accessibilityRole="button"
@@ -240,12 +248,7 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
   );
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -260,19 +263,8 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
               },
             ]}
           >
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: theme.colors.text }]}>
-                Search Foods
-              </Text>
-              <TouchableOpacity
-                onPress={handleClose}
-                accessibilityRole="button"
-                accessibilityLabel="Close food search"
-              >
-                <Text style={[styles.close, { color: theme.colors.primary }]}>
-                  Close
-                </Text>
-              </TouchableOpacity>
+            <View style={{ marginBottom: 6 }}>
+              <SectionHeader title="Search foods" />
             </View>
 
             <View style={styles.controls}>
@@ -395,6 +387,19 @@ export default function FoodSearchModal({ visible, onClose }: Props) {
                 style={{ maxHeight: "70%" }}
               />
             )}
+
+            <View style={styles.footerRow}>
+              <TouchableOpacity onPress={handleClose}>
+                <Text
+                  style={{
+                    color: theme.colors.primary,
+                    fontFamily: fonts.semiBold,
+                  }}
+                >
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -415,14 +420,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    alignItems: "center",
-  },
-  title: { fontSize: 18, fontFamily: fonts.semiBold },
-  close: { fontFamily: fonts.semiBold },
   controls: { marginBottom: 8 },
   row: {
     flexDirection: "row",
@@ -469,8 +466,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   btnText: {
-    color: baseColors.white,
+    color: "#fff",
     fontFamily: fonts.semiBold,
     fontSize: 12,
+  },
+  footerRow: {
+    marginTop: 10,
+    alignItems: "flex-end",
   },
 });

@@ -1,4 +1,3 @@
-// src/services/healthAI.ts
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../config/firebase";
 
@@ -21,6 +20,8 @@ export interface HealthContext {
     macros: { protein: number; carbs: number; fat: number };
   };
   healthConditions?: string[];
+  fitnessGoal?: string;
+  country?: string; // included to bias AI suggestions towards local foods
 }
 
 export async function getHealthAssistantResponse(
@@ -69,7 +70,9 @@ export async function analyzeMeal(
     };
   } catch (e: any) {
     console.error("analyzeMeal error:", e?.message || e);
-    return { analysis: "AI analysis is temporarily unavailable. Try again later." };
+    return {
+      analysis: "AI analysis is temporarily unavailable. Try again later.",
+    };
   }
 }
 
@@ -82,6 +85,7 @@ export type PortionItem = {
   carbs: number;
   fat: number;
   micros?: Record<string, number>;
+  notes?: string;
 };
 export interface MealImageAnalysis {
   name: string;
@@ -183,7 +187,7 @@ function normalizeImageAnalysis(respData: any): MealImageAnalysis {
   };
 }
 
-// NEW: Hugging Face labeler
+// Hugging Face labeler
 export async function labelFoodImageBase64(
   imageBase64: string,
   mimeType: string
@@ -191,7 +195,10 @@ export async function labelFoodImageBase64(
   try {
     const call = httpsCallable(functions, "imageLabeler");
     const resp: any = await call({ imageBase64, mimeType });
-    return { label: resp?.data?.label || "", score: Number(resp?.data?.score || 0) };
+    return {
+      label: resp?.data?.label || "",
+      score: Number(resp?.data?.score || 0),
+    };
   } catch (e: any) {
     console.error("imageLabeler error:", e?.message || e);
     return { label: "", score: 0 };
@@ -216,7 +223,9 @@ export async function analyzeMealImageBase64(
     return normalizeImageAnalysis(resp.data);
   } catch (e: any) {
     console.error("analyzeMealImage error:", e?.message || e);
-    throw new Error("AI image analysis failed. Please try again with a clearer photo.");
+    throw new Error(
+      "AI image analysis failed. Please try again with a clearer photo."
+    );
   }
 }
 
@@ -253,13 +262,27 @@ export async function getPantryMealIdeasAI(
   },
   profile?: HealthContext
 ): Promise<PantryIdea[]> {
+  const countryLine = `User country: ${profile?.country || "Unknown"}. ${
+    (profile?.country || "").toLowerCase().includes("ghana")
+      ? "If appropriate, prefer Ghanaian/local dishes (e.g., jollof rice, waakye, banku, kenkey) using pantry items."
+      : "Prefer locally common, budget-friendly dishes."
+  }`;
+
   const msg = `
-You are a dietician. Suggest 3 meal ideas using the pantry items FIRST. 
+You are a dietician. Suggest 3 meal ideas using the pantry items FIRST.
 Respect dietary preferences: ${targets.preferences?.join(", ") || "none"}.
+${countryLine}
 Today remaining: ${targets.caloriesRemaining} kcal, P${targets.macrosRemaining.protein} C${targets.macrosRemaining.carbs} F${targets.macrosRemaining.fat}.
 
 Pantry:
-${pantry.map((p) => `- ${p.name}${p.grams ? ` (${p.grams} g)` : p.count ? ` (${p.count} pcs)` : ""}`).join("\n")}
+${pantry
+  .map(
+    (p) =>
+      `- ${p.name}${
+        p.grams ? ` (${p.grams} g)` : p.count ? ` (${p.count} pcs)` : ""
+      }`
+  )
+  .join("\n")}
 
 Return JSON array with:
 [{ "title": "", "ingredients": ["name ..."], "description": ["step..."], "nutrition": {"calories": 0, "protein":0,"carbs":0,"fat":0}}]
@@ -278,34 +301,39 @@ Only return JSON.
   ];
 }
 
-// Weekly report
-export async function getWeeklyReportNarrativeAI(
-  summary: {
-    days: {
-      date: string;
-      calories: number;
-      protein: number;
-      carbs: number;
-      fat: number;
-      steps: number;
-      workouts: number;
-      meals: number;
-    }[];
-    totals: Record<string, number>;
-    averages: Record<string, number>;
+// Daily meal suggestions (by remaining macros)
+export async function getDailyMealIdeasAI(
+  targets: {
+    caloriesRemaining: number;
+    macrosRemaining: { protein: number; carbs: number; fat: number };
+    usePantry?: boolean;
   },
   profile?: HealthContext
-): Promise<string> {
-  const msg = `
-Act as a friendly dietician. Write a concise weekly report (5-10 sentences) analyzing:
-- Energy intake vs likely target
-- Macro balance
-- Steps and activity
-- Wins and one specific priority next week
-Base on this JSON:
-${JSON.stringify(summary)}
-Return plain text only.
-  `.trim();
-  return await getHealthAssistantResponse(msg, profile || {});
-}
+): Promise<PantryIdea[]> {
+  const countryLine = `User country: ${profile?.country || "Unknown"}. ${
+    (profile?.country || "").toLowerCase().includes("ghana")
+      ? "When suitable, prefer concise Ghanaian/local options with grams."
+      : "Prefer locally common, budget-friendly options with grams."
+  }`;
 
+  const msg = `
+You are a dietician. Suggest 3 meal ideas the user can eat today.
+${countryLine}
+Respect dietary preferences and allergies from context. Use concise servings with grams.
+Target remaining today: ${targets.caloriesRemaining} kcal, P${targets.macrosRemaining.protein} C${targets.macrosRemaining.carbs} F${targets.macrosRemaining.fat}.
+${targets.usePantry ? "Prefer items likely to be in a typical pantry." : ""}
+Return ONLY JSON:
+[{"title":"","ingredients":[""],"description":[""],"nutrition":{"calories":0,"protein":0,"carbs":0,"fat":0}}]
+`.trim();
+
+  const txt = await getHealthAssistantResponse(msg, profile || {});
+  const json = tryParseJSON<PantryIdea[]>(txt);
+  if (json && Array.isArray(json)) return json.slice(0, 5);
+  return [
+    {
+      title: "Meal suggestions",
+      ingredients: [],
+      description: txt.split("\n").filter(Boolean).slice(0, 6),
+    },
+  ];
+}

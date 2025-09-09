@@ -1,9 +1,9 @@
 // src/components/DailyCoach.tsx
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import Card from "../ui/components/Card";
 import { useTheme } from "../ui/ThemeProvider";
 import { fonts } from "../constants/fonts";
+import { Card } from "../ui/components/UKit";
 
 export default function DailyCoach({
   name,
@@ -30,11 +30,10 @@ export default function DailyCoach({
       <Text style={[styles.title, { color: theme.colors.text }]}>
         Hi {firstName(name)} 👋
       </Text>
-      <Text style={{ color: theme.colors.text }}>
-        {tip}
-      </Text>
+      <Text style={{ color: theme.colors.text }}>{tip}</Text>
       <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
-        Steps: {steps} • Water: {waterMl} ml • Protein: {Math.round(proteinPct)}%
+        Steps: {steps} • Water: {waterMl} ml • Protein:{" "}
+        {Math.round(proteinPct)}%
       </Text>
     </Card>
   );

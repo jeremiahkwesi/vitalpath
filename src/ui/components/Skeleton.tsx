@@ -1,32 +1,46 @@
 // src/ui/components/Skeleton.tsx
-import React from "react";
-import { View, StyleSheet, ViewStyle } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, ViewStyle } from "react-native";
 import { useTheme } from "../ThemeProvider";
 
-export function SkeletonBlock({ style }: { style?: ViewStyle }) {
+export default function Skeleton({
+  style,
+  radius = 10,
+}: {
+  style?: ViewStyle;
+  radius?: number;
+}) {
   const { theme } = useTheme();
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.9,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
   return (
-    <View
+    <Animated.View
       style={[
-        styles.block,
-        { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+        {
+          backgroundColor: theme.colors.surface2,
+          borderRadius: radius,
+          opacity,
+        },
         style,
       ]}
     />
   );
 }
-
-export function SkeletonRow() {
-  return (
-    <View style={{ gap: 8, marginVertical: 8 }}>
-      <SkeletonBlock style={{ height: 16, width: "70%", borderRadius: 8 }} />
-      <SkeletonBlock style={{ height: 12, width: "50%", borderRadius: 8 }} />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  block: {
-    borderWidth: 1,
-  },
-});

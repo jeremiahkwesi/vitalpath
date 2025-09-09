@@ -1,0 +1,1359 @@
+{
+  "projectName": "vitalpath",
+  "rootDir": "C:\\project\\VitalPath.-main",
+  "timestamp": "2025-09-09T11:36:07.795Z",
+  "files": {
+    "files": [
+      {
+        "name": ".env",
+        "path": "C:\\project\\VitalPath.-main\\.env",
+        "ext": ""
+      },
+      {
+        "name": "devices.json",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\devices.json",
+        "ext": ".json"
+      },
+      {
+        "name": "packager-info.json",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\packager-info.json",
+        "ext": ".json"
+      },
+      {
+        "name": "README.md",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\README.md",
+        "ext": ".md"
+      },
+      {
+        "name": "settings.json",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\settings.json",
+        "ext": ".json"
+      },
+      {
+        "name": "router.d.ts",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\types\\router.d.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "favicon-48.png",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web\\cache\\production\\images\\favicon\\favicon-24272cdaeff82cc5facdaccd982a6f05b60c4504704bbf94c19a6388659880bb-contain-transparent\\favicon-48.png",
+        "ext": ".png"
+      },
+      {
+        "name": ".firebaserc",
+        "path": "C:\\project\\VitalPath.-main\\.firebaserc",
+        "ext": ""
+      },
+      {
+        "name": ".gitignore",
+        "path": "C:\\project\\VitalPath.-main\\.gitignore",
+        "ext": ""
+      },
+      {
+        "name": ".gitignore",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\.gitignore",
+        "ext": ""
+      },
+      {
+        "name": "deviceStreaming.xml",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\caches\\deviceStreaming.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "misc.xml",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\misc.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "modules.xml",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\modules.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "vcs.xml",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\vcs.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "VitalPath.iml",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\VitalPath.iml",
+        "ext": ".iml"
+      },
+      {
+        "name": "# Code Citations.md",
+        "path": "C:\\project\\VitalPath.-main\\android\\# Code Citations.md",
+        "ext": ".md"
+      },
+      {
+        "name": ".gitignore",
+        "path": "C:\\project\\VitalPath.-main\\android\\.gitignore",
+        "ext": ""
+      },
+      {
+        "name": "build.gradle",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\build.gradle",
+        "ext": ".gradle"
+      },
+      {
+        "name": "debug.keystore",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\debug.keystore",
+        "ext": ".keystore"
+      },
+      {
+        "name": "google-services.json",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\google-services.json",
+        "ext": ".json"
+      },
+      {
+        "name": "proguard-rules.pro",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\proguard-rules.pro",
+        "ext": ".pro"
+      },
+      {
+        "name": "AndroidManifest.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\debug\\AndroidManifest.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "AndroidManifest.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\AndroidManifest.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "MainActivity.kt",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\java\\com\\anonymous\\VitalPath\\MainActivity.kt",
+        "ext": ".kt"
+      },
+      {
+        "name": "MainApplication.kt",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\java\\com\\anonymous\\VitalPath\\MainApplication.kt",
+        "ext": ".kt"
+      },
+      {
+        "name": "ic_launcher_background.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable\\ic_launcher_background.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "rn_edit_text_material.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable\\rn_edit_text_material.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "splashscreen_logo.png",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-hdpi\\splashscreen_logo.png",
+        "ext": ".png"
+      },
+      {
+        "name": "splashscreen_logo.png",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-mdpi\\splashscreen_logo.png",
+        "ext": ".png"
+      },
+      {
+        "name": "splashscreen_logo.png",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-xhdpi\\splashscreen_logo.png",
+        "ext": ".png"
+      },
+      {
+        "name": "splashscreen_logo.png",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-xxhdpi\\splashscreen_logo.png",
+        "ext": ".png"
+      },
+      {
+        "name": "splashscreen_logo.png",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-xxxhdpi\\splashscreen_logo.png",
+        "ext": ".png"
+      },
+      {
+        "name": "ic_launcher.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-anydpi-v26\\ic_launcher.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "ic_launcher_round.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-anydpi-v26\\ic_launcher_round.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "ic_launcher.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_foreground.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_foreground.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_round.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_foreground.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_foreground.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_round.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_foreground.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_foreground.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_round.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_foreground.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_foreground.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_round.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_foreground.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_foreground.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "ic_launcher_round.webp",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.webp",
+        "ext": ".webp"
+      },
+      {
+        "name": "colors.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\values\\colors.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "strings.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\values\\strings.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "styles.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\values\\styles.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "colors.xml",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\values-night\\colors.xml",
+        "ext": ".xml"
+      },
+      {
+        "name": "build.gradle",
+        "path": "C:\\project\\VitalPath.-main\\android\\build.gradle",
+        "ext": ".gradle"
+      },
+      {
+        "name": "gradle-wrapper.jar",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradle\\wrapper\\gradle-wrapper.jar",
+        "ext": ".jar"
+      },
+      {
+        "name": "gradle-wrapper.properties",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradle\\wrapper\\gradle-wrapper.properties",
+        "ext": ".properties"
+      },
+      {
+        "name": "gradle.properties",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradle.properties",
+        "ext": ".properties"
+      },
+      {
+        "name": "gradlew",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradlew",
+        "ext": ""
+      },
+      {
+        "name": "gradlew.bat",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradlew.bat",
+        "ext": ".bat"
+      },
+      {
+        "name": "settings.gradle",
+        "path": "C:\\project\\VitalPath.-main\\android\\settings.gradle",
+        "ext": ".gradle"
+      },
+      {
+        "name": "AssistanceScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\AssistanceScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "AuthScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\AuthScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "DietaryScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\DietaryScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "EditGoalsScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\EditGoalsScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "EditProfileScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\EditProfileScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "FoodAddScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\FoodAddScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "FoodSearchScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\FoodSearchScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "HistoryScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\HistoryScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "index.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\index.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "LibraryScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\LibraryScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "MealPlannerScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\MealPlannerScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "MealsDiaryScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\MealsDiaryScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "PantryMealIdeasScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\PantryMealIdeasScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "PantryScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\PantryScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "PlanDetailsScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\PlanDetailsScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ProfileScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\ProfileScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ProfileSetupScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\ProfileSetupScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ProgramsScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\ProgramsScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "RecipeImportScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\RecipeImportScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "RecipesScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\RecipesScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "RoutineBuilderScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\RoutineBuilderScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "RoutinesScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\RoutinesScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ScanFoodScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\ScanFoodScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "SettingsScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\SettingsScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "StrengthStatsScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\StrengthStatsScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "TestScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\TestScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WeeklyCheckInScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\WeeklyCheckInScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WeeklyReportScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\WeeklyReportScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WorkoutSessionScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\WorkoutSessionScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WorkoutsHomeScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\WorkoutsHomeScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WorkoutTemplatesScreen.tsx",
+        "path": "C:\\project\\VitalPath.-main\\app\\WorkoutTemplatesScreen.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "app.json",
+        "path": "C:\\project\\VitalPath.-main\\app.json",
+        "ext": ".json"
+      },
+      {
+        "name": "App.tsx",
+        "path": "C:\\project\\VitalPath.-main\\App.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "appwrite-config.js",
+        "path": "C:\\project\\VitalPath.-main\\appwrite-config.js",
+        "ext": ".js"
+      },
+      {
+        "name": "eas.json",
+        "path": "C:\\project\\VitalPath.-main\\eas.json",
+        "ext": ".json"
+      },
+      {
+        "name": "expo-env.d.ts",
+        "path": "C:\\project\\VitalPath.-main\\expo-env.d.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "firebase.json",
+        "path": "C:\\project\\VitalPath.-main\\firebase.json",
+        "ext": ".json"
+      },
+      {
+        "name": "firestore.indexes.json",
+        "path": "C:\\project\\VitalPath.-main\\firestore.indexes.json",
+        "ext": ".json"
+      },
+      {
+        "name": "firestore.rules",
+        "path": "C:\\project\\VitalPath.-main\\firestore.rules",
+        "ext": ".rules"
+      },
+      {
+        "name": ".env.local",
+        "path": "C:\\project\\VitalPath.-main\\functions\\.env.local",
+        "ext": ".local"
+      },
+      {
+        "name": ".eslintrc.js",
+        "path": "C:\\project\\VitalPath.-main\\functions\\.eslintrc.js",
+        "ext": ".js"
+      },
+      {
+        "name": "devices.json",
+        "path": "C:\\project\\VitalPath.-main\\functions\\.expo\\devices.json",
+        "ext": ".json"
+      },
+      {
+        "name": "README.md",
+        "path": "C:\\project\\VitalPath.-main\\functions\\.expo\\README.md",
+        "ext": ".md"
+      },
+      {
+        "name": ".gitignore",
+        "path": "C:\\project\\VitalPath.-main\\functions\\.gitignore",
+        "ext": ""
+      },
+      {
+        "name": "index.js",
+        "path": "C:\\project\\VitalPath.-main\\functions\\lib\\index.js",
+        "ext": ".js"
+      },
+      {
+        "name": "index.js.map",
+        "path": "C:\\project\\VitalPath.-main\\functions\\lib\\index.js.map",
+        "ext": ".map"
+      },
+      {
+        "name": "package-lock.json",
+        "path": "C:\\project\\VitalPath.-main\\functions\\package-lock.json",
+        "ext": ".json"
+      },
+      {
+        "name": "package.json",
+        "path": "C:\\project\\VitalPath.-main\\functions\\package.json",
+        "ext": ".json"
+      },
+      {
+        "name": "index.ts",
+        "path": "C:\\project\\VitalPath.-main\\functions\\src\\index.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "tsconfig.dev.json",
+        "path": "C:\\project\\VitalPath.-main\\functions\\tsconfig.dev.json",
+        "ext": ".json"
+      },
+      {
+        "name": "tsconfig.json",
+        "path": "C:\\project\\VitalPath.-main\\functions\\tsconfig.json",
+        "ext": ".json"
+      },
+      {
+        "name": "package-lock.json",
+        "path": "C:\\project\\VitalPath.-main\\package-lock.json",
+        "ext": ".json"
+      },
+      {
+        "name": "package.json",
+        "path": "C:\\project\\VitalPath.-main\\package.json",
+        "ext": ".json"
+      },
+      {
+        "name": "README.md",
+        "path": "C:\\project\\VitalPath.-main\\README.md",
+        "ext": ".md"
+      },
+      {
+        "name": "Achievements.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\Achievements.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Banner.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\Banner.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "DailyCoach.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\DailyCoach.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "DailyGoals.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\DailyGoals.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ErrorBoundary.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\ErrorBoundary.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "FoodSearchModal.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\FoodSearchModal.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "MealsModal.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\MealsModal.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "OnboardingChecklist.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\OnboardingChecklist.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "PlanModal.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\PlanModal.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "QuickEditMealModal.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\QuickEditMealModal.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WeeklyTrends.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\WeeklyTrends.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WorkoutsModal.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\WorkoutsModal.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "WorkoutsSearchModal.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\WorkoutsSearchModal.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "firebase.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\config\\firebase.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "firebase.ts.orig",
+        "path": "C:\\project\\VitalPath.-main\\src\\config\\firebase.ts.orig",
+        "ext": ".orig"
+      },
+      {
+        "name": "colors.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\constants\\colors.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "countries.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\constants\\countries.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "fonts.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\constants\\fonts.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "ActivityContext.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\context\\ActivityContext.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "AuthContext.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\context\\AuthContext.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "useMockAuth.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\hooks\\useMockAuth.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "aiPlans.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\aiPlans.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "exercisesDb.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\exercisesDb.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "foodDb.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\foodDb.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "healthAI.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\healthAI.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "pantry.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\pantry.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "planner.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\planner.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "recipes.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\recipes.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "routines.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\routines.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "workoutsDb.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\workoutsDb.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "workoutTemplates.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\services\\workoutTemplates.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "Button.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Button.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Card.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Card.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "EmptyState.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\EmptyState.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "IconButton.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\IconButton.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Input.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Input.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ListItem.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\ListItem.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "ModalSheet.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\ModalSheet.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Segmented.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Segmented.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Select.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Select.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Sheet.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Sheet.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Skeleton.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Skeleton.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Toast.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Toast.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "Typography.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Typography.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "UKit.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\UKit.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "useHaptics.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\hooks\\useHaptics.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "ThemeProvider.tsx",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\ThemeProvider.tsx",
+        "ext": ".tsx"
+      },
+      {
+        "name": "tokens.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\tokens.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "achievements.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\achievements.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "appState.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\appState.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "checkin.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\checkin.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "exerciseFavorites.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\exerciseFavorites.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "export.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\export.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "favorites.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\favorites.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "lifts.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\lifts.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "mealPlanner.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\mealPlanner.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "micros.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\micros.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "notifications.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\notifications.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "nutritionAlerts.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\nutritionAlerts.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "prices.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\prices.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "programs.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\programs.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "recipeImport.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\recipeImport.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "userSettings.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\userSettings.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "weight.ts",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils\\weight.ts",
+        "ext": ".ts"
+      },
+      {
+        "name": "storage.rules",
+        "path": "C:\\project\\VitalPath.-main\\storage.rules",
+        "ext": ".rules"
+      },
+      {
+        "name": "codebase-snapshot.cjs",
+        "path": "C:\\project\\VitalPath.-main\\tools\\codebase-snapshot.cjs",
+        "ext": ".cjs"
+      },
+      {
+        "name": "tsconfig.json",
+        "path": "C:\\project\\VitalPath.-main\\tsconfig.json",
+        "ext": ".json"
+      }
+    ],
+    "dirs": [
+      {
+        "name": ".expo",
+        "path": "C:\\project\\VitalPath.-main\\.expo"
+      },
+      {
+        "name": "types",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\types"
+      },
+      {
+        "name": "web",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web"
+      },
+      {
+        "name": "cache",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web\\cache"
+      },
+      {
+        "name": "production",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web\\cache\\production"
+      },
+      {
+        "name": "images",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web\\cache\\production\\images"
+      },
+      {
+        "name": "favicon",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web\\cache\\production\\images\\favicon"
+      },
+      {
+        "name": "favicon-24272cdaeff82cc5facdaccd982a6f05b60c4504704bbf94c19a6388659880bb-contain-transparent",
+        "path": "C:\\project\\VitalPath.-main\\.expo\\web\\cache\\production\\images\\favicon\\favicon-24272cdaeff82cc5facdaccd982a6f05b60c4504704bbf94c19a6388659880bb-contain-transparent"
+      },
+      {
+        "name": ".idea",
+        "path": "C:\\project\\VitalPath.-main\\.idea"
+      },
+      {
+        "name": "caches",
+        "path": "C:\\project\\VitalPath.-main\\.idea\\caches"
+      },
+      {
+        "name": ".vscode",
+        "path": "C:\\project\\VitalPath.-main\\.vscode"
+      },
+      {
+        "name": "android",
+        "path": "C:\\project\\VitalPath.-main\\android"
+      },
+      {
+        "name": "app",
+        "path": "C:\\project\\VitalPath.-main\\android\\app"
+      },
+      {
+        "name": "src",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src"
+      },
+      {
+        "name": "debug",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\debug"
+      },
+      {
+        "name": "main",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main"
+      },
+      {
+        "name": "java",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\java"
+      },
+      {
+        "name": "com",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\java\\com"
+      },
+      {
+        "name": "anonymous",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\java\\com\\anonymous"
+      },
+      {
+        "name": "VitalPath",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\java\\com\\anonymous\\VitalPath"
+      },
+      {
+        "name": "res",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res"
+      },
+      {
+        "name": "drawable",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable"
+      },
+      {
+        "name": "drawable-hdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-hdpi"
+      },
+      {
+        "name": "drawable-mdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-mdpi"
+      },
+      {
+        "name": "drawable-xhdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-xhdpi"
+      },
+      {
+        "name": "drawable-xxhdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-xxhdpi"
+      },
+      {
+        "name": "drawable-xxxhdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\drawable-xxxhdpi"
+      },
+      {
+        "name": "mipmap-anydpi-v26",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-anydpi-v26"
+      },
+      {
+        "name": "mipmap-hdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-hdpi"
+      },
+      {
+        "name": "mipmap-mdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-mdpi"
+      },
+      {
+        "name": "mipmap-xhdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xhdpi"
+      },
+      {
+        "name": "mipmap-xxhdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxhdpi"
+      },
+      {
+        "name": "mipmap-xxxhdpi",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\mipmap-xxxhdpi"
+      },
+      {
+        "name": "values",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\values"
+      },
+      {
+        "name": "values-night",
+        "path": "C:\\project\\VitalPath.-main\\android\\app\\src\\main\\res\\values-night"
+      },
+      {
+        "name": "gradle",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradle"
+      },
+      {
+        "name": "wrapper",
+        "path": "C:\\project\\VitalPath.-main\\android\\gradle\\wrapper"
+      },
+      {
+        "name": "app",
+        "path": "C:\\project\\VitalPath.-main\\app"
+      },
+      {
+        "name": "functions",
+        "path": "C:\\project\\VitalPath.-main\\functions"
+      },
+      {
+        "name": ".expo",
+        "path": "C:\\project\\VitalPath.-main\\functions\\.expo"
+      },
+      {
+        "name": "lib",
+        "path": "C:\\project\\VitalPath.-main\\functions\\lib"
+      },
+      {
+        "name": "src",
+        "path": "C:\\project\\VitalPath.-main\\functions\\src"
+      },
+      {
+        "name": "scripts",
+        "path": "C:\\project\\VitalPath.-main\\scripts"
+      },
+      {
+        "name": "src",
+        "path": "C:\\project\\VitalPath.-main\\src"
+      },
+      {
+        "name": "components",
+        "path": "C:\\project\\VitalPath.-main\\src\\components"
+      },
+      {
+        "name": "config",
+        "path": "C:\\project\\VitalPath.-main\\src\\config"
+      },
+      {
+        "name": "constants",
+        "path": "C:\\project\\VitalPath.-main\\src\\constants"
+      },
+      {
+        "name": "context",
+        "path": "C:\\project\\VitalPath.-main\\src\\context"
+      },
+      {
+        "name": "hooks",
+        "path": "C:\\project\\VitalPath.-main\\src\\hooks"
+      },
+      {
+        "name": "services",
+        "path": "C:\\project\\VitalPath.-main\\src\\services"
+      },
+      {
+        "name": "ui",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui"
+      },
+      {
+        "name": "components",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components"
+      },
+      {
+        "name": "hooks",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\hooks"
+      },
+      {
+        "name": "utils",
+        "path": "C:\\project\\VitalPath.-main\\src\\utils"
+      },
+      {
+        "name": "tools",
+        "path": "C:\\project\\VitalPath.-main\\tools"
+      }
+    ]
+  },
+  "screensAndComponents": {
+    "screens": [
+      {
+        "name": "AssistanceScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\AssistanceScreen.tsx"
+      },
+      {
+        "name": "AuthScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\AuthScreen.tsx"
+      },
+      {
+        "name": "DietaryScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\DietaryScreen.tsx"
+      },
+      {
+        "name": "EditGoalsScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\EditGoalsScreen.tsx"
+      },
+      {
+        "name": "EditProfileScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\EditProfileScreen.tsx"
+      },
+      {
+        "name": "FoodAddScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\FoodAddScreen.tsx"
+      },
+      {
+        "name": "FoodSearchScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\FoodSearchScreen.tsx"
+      },
+      {
+        "name": "HistoryScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\HistoryScreen.tsx"
+      },
+      {
+        "name": "LibraryScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\LibraryScreen.tsx"
+      },
+      {
+        "name": "MealPlannerScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\MealPlannerScreen.tsx"
+      },
+      {
+        "name": "MealsDiaryScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\MealsDiaryScreen.tsx"
+      },
+      {
+        "name": "PantryMealIdeasScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\PantryMealIdeasScreen.tsx"
+      },
+      {
+        "name": "PantryScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\PantryScreen.tsx"
+      },
+      {
+        "name": "PlanDetailsScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\PlanDetailsScreen.tsx"
+      },
+      {
+        "name": "ProfileScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\ProfileScreen.tsx"
+      },
+      {
+        "name": "ProfileSetupScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\ProfileSetupScreen.tsx"
+      },
+      {
+        "name": "ProgramsScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\ProgramsScreen.tsx"
+      },
+      {
+        "name": "RecipeImportScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\RecipeImportScreen.tsx"
+      },
+      {
+        "name": "RecipesScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\RecipesScreen.tsx"
+      },
+      {
+        "name": "RoutineBuilderScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\RoutineBuilderScreen.tsx"
+      },
+      {
+        "name": "RoutinesScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\RoutinesScreen.tsx"
+      },
+      {
+        "name": "ScanFoodScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\ScanFoodScreen.tsx"
+      },
+      {
+        "name": "SettingsScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\SettingsScreen.tsx"
+      },
+      {
+        "name": "StrengthStatsScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\StrengthStatsScreen.tsx"
+      },
+      {
+        "name": "TestScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\TestScreen.tsx"
+      },
+      {
+        "name": "WeeklyCheckInScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\WeeklyCheckInScreen.tsx"
+      },
+      {
+        "name": "WeeklyReportScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\WeeklyReportScreen.tsx"
+      },
+      {
+        "name": "WorkoutSessionScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\WorkoutSessionScreen.tsx"
+      },
+      {
+        "name": "WorkoutsHomeScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\WorkoutsHomeScreen.tsx"
+      },
+      {
+        "name": "WorkoutTemplatesScreen",
+        "path": "C:\\project\\VitalPath.-main\\app\\WorkoutTemplatesScreen.tsx"
+      }
+    ],
+    "components": [
+      {
+        "name": "FoodSearchModal",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\FoodSearchModal.tsx"
+      },
+      {
+        "name": "MealsModal",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\MealsModal.tsx"
+      },
+      {
+        "name": "PlanModal",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\PlanModal.tsx"
+      },
+      {
+        "name": "QuickEditMealModal",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\QuickEditMealModal.tsx"
+      },
+      {
+        "name": "WorkoutsModal",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\WorkoutsModal.tsx"
+      },
+      {
+        "name": "WorkoutsSearchModal",
+        "path": "C:\\project\\VitalPath.-main\\src\\components\\WorkoutsSearchModal.tsx"
+      },
+      {
+        "name": "Button",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Button.tsx"
+      },
+      {
+        "name": "Card",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\Card.tsx"
+      },
+      {
+        "name": "IconButton",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\IconButton.tsx"
+      },
+      {
+        "name": "ModalSheet",
+        "path": "C:\\project\\VitalPath.-main\\src\\ui\\components\\ModalSheet.tsx"
+      }
+    ]
+  },
+  "package": {
+    "name": "vitalpath",
+    "version": "1.0.0",
+    "dependencies": [
+      "@expo/vector-icons",
+      "@react-native-async-storage/async-storage",
+      "@react-native-picker/picker",
+      "@react-navigation/bottom-tabs",
+      "@react-navigation/native-stack",
+      "expo",
+      "expo-barcode-scanner",
+      "expo-blur",
+      "expo-constants",
+      "expo-dev-client",
+      "expo-file-system",
+      "expo-font",
+      "expo-haptics",
+      "expo-image-manipulator",
+      "expo-image-picker",
+      "expo-linking",
+      "expo-notifications",
+      "expo-router",
+      "expo-sensors",
+      "expo-sharing",
+      "expo-splash-screen",
+      "expo-status-bar",
+      "expo-symbols",
+      "expo-system-ui",
+      "expo-web-browser",
+      "firebase",
+      "openai",
+      "react",
+      "react-dom",
+      "react-native",
+      "react-native-appwrite",
+      "react-native-gesture-handler",
+      "react-native-reanimated",
+      "react-native-safe-area-context",
+      "react-native-url-polyfill",
+      "react-native-web",
+      "react-native-webview",
+      "@react-native-community/datetimepicker",
+      "expo-print"
+    ],
+    "devDependencies": [
+      "@babel/core",
+      "@expo/ngrok",
+      "@types/jest",
+      "@types/react",
+      "@types/react-native",
+      "@types/react-test-renderer",
+      "jest",
+      "jest-expo",
+      "react-test-renderer",
+      "typescript"
+    ]
+  }
+}

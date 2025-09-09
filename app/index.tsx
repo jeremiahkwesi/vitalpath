@@ -1,4 +1,3 @@
-// app/index.tsx
 import "react-native-gesture-handler";
 import React, { useEffect, Suspense } from "react";
 import {
@@ -39,7 +38,6 @@ const RoutinesScreen = React.lazy(() => import("./RoutinesScreen"));
 const MealPlannerScreen = React.lazy(() => import("./MealPlannerScreen"));
 const ProfileScreen = React.lazy(() => import("./ProfileScreen"));
 const SettingsScreen = React.lazy(() => import("./SettingsScreen"));
-const LibraryScreen = React.lazy(() => import("./LibraryScreen"));
 const EditProfileScreen = React.lazy(() => import("./EditProfileScreen"));
 const EditGoalsScreen = React.lazy(() => import("./EditGoalsScreen"));
 const StrengthStatsScreen = React.lazy(() => import("./StrengthStatsScreen"));
@@ -57,10 +55,10 @@ const PantryMealIdeasScreen = React.lazy(
 );
 const WeeklyCheckInScreen = React.lazy(() => import("./WeeklyCheckInScreen"));
 const WeeklyReportScreen = React.lazy(() => import("./WeeklyReportScreen"));
+const PlanDetailsScreen = React.lazy(() => import("./PlanDetailsScreen"));
 
 export type RootTabParamList = {
   Home: undefined;
-  Scan: undefined;
   Plan: undefined;
   Workouts: undefined;
   Coach: undefined;
@@ -187,11 +185,7 @@ function PlanStack() {
         component={HistoryScreen}
         options={{ title: "History" }}
       />
-      <Stack.Screen
-        name="Library"
-        component={LibraryScreen}
-        options={{ title: "Meal Library" }}
-      />
+      <Stack.Screen name="Scan" component={ScanFoodScreen} options={{ title: "Scan" }} />
     </Stack.Navigator>
   );
 }
@@ -241,6 +235,11 @@ function WorkoutsStack() {
         name="WorkoutTemplates"
         component={WorkoutTemplatesScreen}
         options={{ title: "Templates" }}
+      />
+      <Stack.Screen
+        name="PlanDetails"
+        component={PlanDetailsScreen}
+        options={{ title: "Plan Details" }}
       />
     </Stack.Navigator>
   );
@@ -313,8 +312,6 @@ function TabNav() {
     switch (route) {
       case "Home":
         return focused ? "home" : "home-outline";
-      case "Scan":
-        return focused ? "scan" : "scan-outline";
       case "Plan":
         return focused ? "calendar" : "calendar-outline";
       case "Workouts":
@@ -375,7 +372,6 @@ function TabNav() {
         })}
       >
         <Tab.Screen name="Home" component={DietaryScreen} options={{ title: "Home" }} />
-        <Tab.Screen name="Scan" component={ScanFoodScreen} options={{ title: "Scan" }} />
         <Tab.Screen name="Plan" component={PlanStack} options={{ title: "Plan" }} />
         <Tab.Screen
           name="Workouts"
@@ -394,7 +390,7 @@ function TabNav() {
 }
 
 function AppShell() {
-  const { user } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -406,6 +402,21 @@ function AppShell() {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <AuthScreen />
+      </Suspense>
+    );
+  }
+
+  const incomplete =
+    !userProfile ||
+    !userProfile.name ||
+    !userProfile.height ||
+    !userProfile.weight ||
+    !userProfile.goal;
+  if (loading) return <LoadingScreen />;
+  if (incomplete) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <ProfileSetupScreen />
       </Suspense>
     );
   }

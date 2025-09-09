@@ -1,4 +1,3 @@
-// app/ScanFoodScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -22,6 +21,7 @@ import { useAuth } from "../src/context/AuthContext";
 import {
   analyzeMealImageBase64,
   MealImageAnalysis,
+  labelFoodImageBase64,
 } from "../src/services/healthAI";
 import { fonts } from "../src/constants/fonts";
 import QuickEditMealModal, {
@@ -269,10 +269,15 @@ export default function ScanFoodScreen() {
 
       const base64 = manipulated.base64 || "";
       if (!base64) throw new Error("Could not read image data.");
+      // optional label hint via HF to guide Gemini
+      const label = await labelFoodImageBase64(base64, "image/jpeg");
       const result = await analyzeMealImageBase64(
         base64,
         "image/jpeg",
-        buildContext()
+        buildContext(),
+        {
+          labelHint: label.label || "",
+        }
       );
       const g =
         result.portionGrams ?? parseServingToGrams(result.serving) ?? null;

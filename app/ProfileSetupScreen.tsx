@@ -1,4 +1,3 @@
-// app/ProfileSetupScreen.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
@@ -22,6 +21,7 @@ import { db, functions } from "../src/config/firebase";
 import { useTheme } from "../src/ui/ThemeProvider";
 import Card from "../src/ui/components/Card";
 import Select from "../src/ui/components/Select";
+import COUNTRIES from "../src/constants/countries";
 
 const GOALS = [
   { label: "Maintain Weight", value: "maintain" },
@@ -31,7 +31,21 @@ const GOALS = [
   { label: "Lose Fat", value: "lose_fat" },
 ] as const;
 
-const ACTIVITIES = ["sedentary", "light", "moderate", "active", "very_active"] as const;
+const FITNESS_GOALS = [
+  { label: "Maintain overall health", value: "general_health" },
+  { label: "Become athletic", value: "athletic" },
+  { label: "Improve endurance", value: "endurance" },
+  { label: "Build strength", value: "strength_focus" },
+  { label: "Increase flexibility/mobility", value: "mobility" },
+] as const;
+
+const ACTIVITIES = [
+  "sedentary",
+  "light",
+  "moderate",
+  "active",
+  "very_active",
+] as const;
 
 const BODY_TYPES = [
   { label: "Ectomorph (lean, hard to gain)", value: "ectomorph" },
@@ -40,10 +54,26 @@ const BODY_TYPES = [
   { label: "Other/Not sure", value: "other" },
 ] as const;
 
-type GoalType = "lose_weight" | "gain_weight" | "maintain" | "gain_muscle" | "lose_fat";
+type GoalType =
+  | "lose_weight"
+  | "gain_weight"
+  | "maintain"
+  | "gain_muscle"
+  | "lose_fat";
 type GenderType = "male" | "female";
-type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+type ActivityLevel =
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "active"
+  | "very_active";
 type BodyType = "ectomorph" | "mesomorph" | "endomorph" | "other";
+type FitnessGoal =
+  | "general_health"
+  | "athletic"
+  | "endurance"
+  | "strength_focus"
+  | "mobility";
 
 const activityFactorMap: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -53,11 +83,21 @@ const activityFactorMap: Record<ActivityLevel, number> = {
   very_active: 1.9,
 };
 
-function adjustByBodyType(baseCalories: number, goal: GoalType, bodyType: BodyType): number {
-  if (bodyType === "ectomorph" && (goal === "gain_weight" || goal === "gain_muscle")) {
+function adjustByBodyType(
+  baseCalories: number,
+  goal: GoalType,
+  bodyType: BodyType
+): number {
+  if (
+    bodyType === "ectomorph" &&
+    (goal === "gain_weight" || goal === "gain_muscle")
+  ) {
     return Math.round(baseCalories * 1.07);
   }
-  if (bodyType === "endomorph" && (goal === "lose_weight" || goal === "lose_fat")) {
+  if (
+    bodyType === "endomorph" &&
+    (goal === "lose_weight" || goal === "lose_fat")
+  ) {
     return Math.round(baseCalories * 0.93);
   }
   return Math.round(baseCalories);
@@ -133,23 +173,53 @@ function estimateCaloriesAndMacros(
 
 export default function ProfileSetupScreen() {
   const route = useRoute<any>();
-  const initialStepParam = route.params?.initialStep as number | undefined;
+  const initialStepParam = route.params?.initialStep as
+    | number
+    | undefined;
 
   const { theme } = useTheme();
   const { updateUserProfile, user, userProfile } = useAuth();
 
   const [name, setName] = useState(userProfile?.name || "");
-  const [age, setAge] = useState(userProfile?.age != null && userProfile.age > 0 ? String(userProfile.age) : "");
-  const [weight, setWeight] = useState(userProfile?.weight ? String(userProfile.weight) : "");
-  const [height, setHeight] = useState(userProfile?.height ? String(userProfile.height) : "");
-  const [gender, setGender] = useState<GenderType>(userProfile?.gender || "male");
-  const [goal, setGoal] = useState<GoalType>(userProfile?.goal || "maintain");
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(userProfile?.activityLevel || "moderate");
-  const [bodyType, setBodyType] = useState<BodyType>(userProfile?.bodyType || "other");
+  const [age, setAge] = useState(
+    userProfile?.age != null && userProfile.age > 0
+      ? String(userProfile.age)
+      : ""
+  );
+  const [weight, setWeight] = useState(
+    userProfile?.weight ? String(userProfile.weight) : ""
+  );
+  const [height, setHeight] = useState(
+    userProfile?.height ? String(userProfile.height) : ""
+  );
+  const [gender, setGender] = useState<GenderType>(
+    userProfile?.gender || "male"
+  );
+  const [goal, setGoal] = useState<GoalType>(
+    userProfile?.goal || "maintain"
+  );
+  const [fitnessGoal, setFitnessGoal] = useState<FitnessGoal>(
+    (userProfile as any)?.fitnessGoal || "general_health"
+  );
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(
+    userProfile?.activityLevel || "moderate"
+  );
+  const [bodyType, setBodyType] = useState<BodyType>(
+    userProfile?.bodyType || "other"
+  );
   const [country, setCountry] = useState(userProfile?.country || "");
-  const [timelineWeeks, setTimelineWeeks] = useState(userProfile?.targetTimelineWeeks || 12);
-  const [dietaryPreferences, setDietaryPreferences] = useState((userProfile?.dietaryPreferences || []).join(", "));
-  const [allergies, setAllergies] = useState((userProfile?.allergies || []).join(", "));
+  const [timelineWeeks, setTimelineWeeks] = useState(
+    userProfile?.targetTimelineWeeks || 12
+  );
+  const [dietaryPreferences, setDietaryPreferences] = useState(
+    (userProfile?.dietaryPreferences || []).join(", ")
+  );
+  const [allergies, setAllergies] = useState(
+    (userProfile?.allergies || []).join(", ")
+  );
+  const [healthConds, setHealthConds] = useState(
+    (userProfile?.healthConditions || []).join(", ")
+  );
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -162,7 +232,8 @@ export default function ProfileSetupScreen() {
   const recommendedTimelines = useMemo(() => {
     const base = [6, 8, 12, 16, 20, 24, 36, 52];
     if (goal === "lose_weight" || goal === "lose_fat") return base;
-    if (goal === "gain_weight" || goal === "gain_muscle") return base.slice(1);
+    if (goal === "gain_weight" || goal === "gain_muscle")
+      return base.slice(1);
     return [4, 6, 8, 12, 16, 20, 24];
   }, [goal]);
 
@@ -171,11 +242,24 @@ export default function ProfileSetupScreen() {
     const w = Number(weight);
     const h = Number(height);
     if (!a || !w || !h) return null;
-    return estimateCaloriesAndMacros(w, h, a, gender, goal, activityLevel, bodyType);
+    return estimateCaloriesAndMacros(
+      w,
+      h,
+      a,
+      gender,
+      goal,
+      activityLevel,
+      bodyType
+    );
   }, [age, weight, height, gender, goal, activityLevel, bodyType]);
 
+  const COUNTRY_OPTS = useMemo(
+    () => COUNTRIES.map((c) => ({ label: c, value: c })),
+    []
+  );
+
   const canNext = () => {
-    if (step === 0) return !!name && !!age && !!gender && !!country;
+    if (step === 0) return !!name && !!age && !!gender && !!(country || "Ghana");
     if (step === 1) return !!weight && !!height && !!bodyType;
     if (step === 2) return !!goal && !!activityLevel && !!timelineWeeks;
     if (step === 3) return true;
@@ -200,11 +284,17 @@ export default function ProfileSetupScreen() {
     const weightN = parseFloat(weight);
     const heightN = parseFloat(height);
     if (isNaN(ageN) || isNaN(weightN) || isNaN(heightN)) {
-      Alert.alert("Error", "Please enter valid numbers for age/weight/height");
+      Alert.alert(
+        "Error",
+        "Please enter valid numbers for age/weight/height"
+      );
       return;
     }
     if (heightN <= 0.5 || heightN > 2.5) {
-      Alert.alert("Invalid height", "Enter height in meters (e.g., 1.75).");
+      Alert.alert(
+        "Invalid height",
+        "Enter height in meters (e.g., 1.75)."
+      );
       return;
     }
     if (weightN <= 20 || weightN > 400) {
@@ -222,16 +312,22 @@ export default function ProfileSetupScreen() {
         weight: weightN,
         height: heightN,
         gender,
-        goal,
+        goal, // body composition goal
+        // @ts-ignore - optional field for extended plans
+        fitnessGoal,
         activityLevel,
         bodyType,
         targetTimelineWeeks: timelineWeeks,
-        country: country.trim(),
+        country: (country || "Ghana").trim(),
         dietaryPreferences: dietaryPreferences
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
         allergies: allergies
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        healthConditions: healthConds
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
@@ -247,15 +343,20 @@ export default function ProfileSetupScreen() {
           height: heightN,
           gender,
           goal,
+          fitnessGoal,
           activityLevel,
           bodyType,
           targetTimelineWeeks: timelineWeeks,
-          country: country.trim(),
+          country: (country || "Ghana").trim(),
           dietaryPreferences: dietaryPreferences
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean),
           allergies: allergies
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+          healthConditions: healthConds
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean),
@@ -271,9 +372,15 @@ export default function ProfileSetupScreen() {
         );
       }
 
-      Alert.alert("Profile Saved", "Your AI plan is ready in Planner/History.");
+      Alert.alert(
+        "Profile Saved",
+        "Your AI plan is ready in Planner/History."
+      );
     } catch (error) {
-      Alert.alert("Saved", "Profile saved. AI plan generation failed; you can retry later.");
+      Alert.alert(
+        "Saved",
+        "Profile saved. AI plan generation failed; you can retry later."
+      );
     } finally {
       setLoading(false);
     }
@@ -286,29 +393,120 @@ export default function ProfileSetupScreen() {
           key={i}
           style={[
             styles.dot,
-            { backgroundColor: i <= step ? theme.colors.primary : theme.colors.border },
+            {
+              backgroundColor:
+                i <= step ? theme.colors.primary : theme.colors.border,
+            },
           ]}
         />
       ))}
     </View>
   );
 
+  const STEP_LABELS = [
+    "Basics",
+    "Body",
+    "Goals",
+    "Preferences",
+    "Review",
+  ] as const;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.appBg }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic">
-          <Text style={[styles.title, { color: theme.colors.text }]}>Complete Your Profile</Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 24,
+          }}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text
+            style={[styles.title, { color: theme.colors.text }]}
+          >
+            Complete Your Profile
+          </Text>
+          <Text
+            style={[styles.subtitle, { color: theme.colors.textMuted }]}
+          >
             Help us personalize your AI plan (workouts + meals)
           </Text>
+
+          {/* Stepper */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, marginTop: 8 }}
+          >
+            {STEP_LABELS.map((lbl, idx) => {
+              const active = idx === step;
+              const done = idx < step;
+              return (
+                <View
+                  key={lbl}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: active
+                      ? theme.colors.primary
+                      : theme.colors.border,
+                    backgroundColor: active
+                      ? theme.colors.primary + "1A"
+                      : theme.colors.surface2,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: active
+                        ? theme.colors.primary
+                        : theme.colors.text,
+                      fontFamily: fonts.semiBold,
+                      fontSize: 12,
+                    }}
+                  >
+                    {done ? "✓ " : ""}
+                    {lbl}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
 
           <StepDots />
 
           {step === 0 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Basics</Text>
-              <LabeledInput label="Name *" value={name} onChangeText={setName} placeholder="Enter your name" />
-              <LabeledInput label="Age *" value={age} onChangeText={setAge} placeholder="Enter your age" keyboardType="numeric" />
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Basics
+              </Text>
+              <LabeledInput
+                label="Name *"
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your name"
+              />
+              <LabeledInput
+                label="Age *"
+                value={age}
+                onChangeText={setAge}
+                placeholder="Enter your age"
+                keyboardType="numeric"
+              />
               <Select
                 label="Gender *"
                 value={gender}
@@ -318,13 +516,26 @@ export default function ProfileSetupScreen() {
                 ]}
                 onChange={(v) => setGender(v)}
               />
-              <LabeledInput label="Country *" value={country} onChangeText={setCountry} placeholder="e.g., Ghana" />
+              <Select
+                label="Country *"
+                value={country || "Ghana"}
+                items={COUNTRY_OPTS}
+                onChange={(v) => setCountry(String(v))}
+                placeholder="Select country"
+              />
             </Card>
           )}
 
           {step === 1 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Body</Text>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Body
+              </Text>
               <LabeledInput
                 label="Weight (kg) *"
                 value={weight}
@@ -342,7 +553,10 @@ export default function ProfileSetupScreen() {
               <Select
                 label="Body Type *"
                 value={bodyType}
-                items={BODY_TYPES.map((b) => ({ label: b.label, value: b.value }))}
+                items={BODY_TYPES.map((b) => ({
+                  label: b.label,
+                  value: b.value,
+                }))}
                 onChange={(v) => setBodyType(v)}
               />
             </Card>
@@ -350,26 +564,57 @@ export default function ProfileSetupScreen() {
 
           {step === 2 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Goals</Text>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Goals
+              </Text>
+              <Select
+                label="Fitness Goal"
+                value={fitnessGoal}
+                items={FITNESS_GOALS.map((g) => ({
+                  label: g.label,
+                  value: g.value as any,
+                }))}
+                onChange={(v) => setFitnessGoal(v as FitnessGoal)}
+              />
               <Select
                 label="Primary Goal"
                 value={goal}
-                items={GOALS.map((g) => ({ label: g.label, value: g.value }))}
+                items={GOALS.map((g) => ({
+                  label: g.label,
+                  value: g.value,
+                }))}
                 onChange={(v) => setGoal(v)}
               />
               <Select
                 label="Activity Level"
                 value={activityLevel}
-                items={ACTIVITIES.map((a) => ({
-                  label: a.replace("_", " ").replace(/\b\w/g, (m) => m.toUpperCase()),
-                  value: a as ActivityLevel,
-                }))}
+                items={ACTIVITIES.map((a) => {
+                  const label =
+                    a === "sedentary"
+                      ? "Sedentary — desk job, little exercise"
+                      : a === "light"
+                      ? "Light — 1–2 light sessions/wk"
+                      : a === "moderate"
+                      ? "Moderate — 3–4 sessions/wk"
+                      : a === "active"
+                      ? "Active — 5–6 sessions/wk"
+                      : "Very Active — daily training/manual work";
+                  return { label, value: a as ActivityLevel };
+                })}
                 onChange={(v) => setActivityLevel(v)}
               />
               <Select
                 label="Realistic Timeline (weeks)"
                 value={timelineWeeks}
-                items={recommendedTimelines.map((w) => ({ label: String(w), value: w }))}
+                items={recommendedTimelines.map((w) => ({
+                  label: String(w),
+                  value: w,
+                }))}
                 onChange={(v) => setTimelineWeeks(Number(v))}
               />
             </Card>
@@ -377,7 +622,14 @@ export default function ProfileSetupScreen() {
 
           {step === 3 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Preferences (optional)</Text>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Preferences (optional)
+              </Text>
               <LabeledTextArea
                 label="Dietary Preferences"
                 value={dietaryPreferences}
@@ -390,12 +642,25 @@ export default function ProfileSetupScreen() {
                 onChangeText={setAllergies}
                 placeholder="Comma-separated (e.g., peanuts, shellfish)"
               />
+              <LabeledTextArea
+                label="Health conditions"
+                value={healthConds}
+                onChangeText={setHealthConds}
+                placeholder="Comma-separated (e.g., hypertension, diabetes)"
+              />
             </Card>
           )}
 
           {step === 4 && (
             <Card style={{ marginTop: 12 }}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Review & Preview</Text>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.text },
+                ]}
+              >
+                Review & Preview
+              </Text>
               {!preview ? (
                 <Text style={{ color: theme.colors.textMuted }}>
                   Enter age, weight, and height to preview targets.
@@ -405,12 +670,23 @@ export default function ProfileSetupScreen() {
                   <Text style={{ color: theme.colors.text }}>
                     Estimated daily calories: {preview.calories} kcal
                   </Text>
-                  <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
-                    Macros: P {preview.macros.protein}g • C {preview.macros.carbs}g • F {preview.macros.fat}g
+                  <Text
+                    style={{
+                      color: theme.colors.textMuted,
+                      marginTop: 4,
+                    }}
+                  >
+                    Macros: P {preview.macros.protein}g • C{" "}
+                    {preview.macros.carbs}g • F {preview.macros.fat}g
                   </Text>
                 </>
               )}
-              <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+              <Text
+                style={{
+                  color: theme.colors.textMuted,
+                  marginTop: 8,
+                }}
+              >
                 These targets will save to your profile (you can edit later).
               </Text>
             </Card>
@@ -420,9 +696,23 @@ export default function ProfileSetupScreen() {
             {step > 0 ? (
               <TouchableOpacity
                 onPress={back}
-                style={[styles.footerBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+                style={[
+                  styles.footerBtn,
+                  {
+                    backgroundColor: theme.colors.surface2,
+                    borderColor: theme.colors.border,
+                    borderWidth: 1,
+                  },
+                ]}
               >
-                <Text style={[styles.footerBtnText, { color: theme.colors.text }]}>Back</Text>
+                <Text
+                  style={[
+                    styles.footerBtnText,
+                    { color: theme.colors.text },
+                  ]}
+                >
+                  Back
+                </Text>
               </TouchableOpacity>
             ) : (
               <View style={{ flex: 1 }} />
@@ -431,18 +721,31 @@ export default function ProfileSetupScreen() {
             {step < 4 ? (
               <TouchableOpacity
                 onPress={next}
-                style={[styles.footerBtn, { backgroundColor: theme.colors.primary }]}
+                style={[
+                  styles.footerBtn,
+                  { backgroundColor: theme.colors.primary },
+                ]}
                 disabled={!canNext()}
               >
-                <Text style={[styles.footerBtnText, { color: "#fff" }]}>Next</Text>
+                <Text
+                  style={[styles.footerBtnText, { color: "#fff" }]}
+                >
+                  Next
+                </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 onPress={handleSave}
                 disabled={loading}
-                style={[styles.footerBtn, { backgroundColor: theme.colors.primary }, loading && { opacity: 0.7 }]}
+                style={[
+                  styles.footerBtn,
+                  { backgroundColor: theme.colors.primary },
+                  loading && { opacity: 0.7 },
+                ]}
               >
-                <Text style={[styles.footerBtnText, { color: "#fff" }]}>
+                <Text
+                  style={[styles.footerBtnText, { color: "#fff" }]}
+                >
                   {loading ? "Saving…" : "Complete Setup"}
                 </Text>
               </TouchableOpacity>
@@ -454,13 +757,25 @@ export default function ProfileSetupScreen() {
   );
 }
 
-function LabeledInput({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
+function LabeledInput({
+  label,
+  ...props
+}: { label: string } & React.ComponentProps<typeof TextInput>) {
   const { theme } = useTheme();
   return (
     <View style={{ marginBottom: 10 }}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <Text style={[styles.label, { color: theme.colors.text }]}>
+        {label}
+      </Text>
       <TextInput
-        style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.colors.surface2,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          },
+        ]}
         placeholderTextColor={theme.colors.textMuted}
         {...props}
       />
@@ -468,14 +783,26 @@ function LabeledInput({ label, ...props }: { label: string } & React.ComponentPr
   );
 }
 
-function LabeledTextArea({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
+function LabeledTextArea({
+  label,
+  ...props
+}: { label: string } & React.ComponentProps<typeof TextInput>) {
   const { theme } = useTheme();
   return (
     <View style={{ marginBottom: 10 }}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <Text style={[styles.label, { color: theme.colors.text }]}>
+        {label}
+      </Text>
       <TextInput
         multiline
-        style={[styles.textArea, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+        style={[
+          styles.textArea,
+          {
+            backgroundColor: theme.colors.surface2,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          },
+        ]}
         placeholderTextColor={theme.colors.textMuted}
         {...props}
       />
@@ -485,14 +812,52 @@ function LabeledTextArea({ label, ...props }: { label: string } & React.Componen
 
 const styles = StyleSheet.create({
   title: { fontSize: 22, fontFamily: fonts.bold, textAlign: "center" },
-  subtitle: { fontSize: 14, fontFamily: fonts.regular, textAlign: "center", marginTop: 4 },
-  sectionTitle: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 8 },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    textAlign: "center",
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    marginBottom: 8,
+  },
   label: { fontSize: 14, fontFamily: fonts.semiBold, marginBottom: 6 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 12, fontSize: 16, fontFamily: fonts.regular },
-  textArea: { borderRadius: 10, borderWidth: 1, padding: 12, fontSize: 16, fontFamily: fonts.regular, minHeight: 90, textAlignVertical: "top" },
-  dots: { flexDirection: "row", alignSelf: "center", gap: 6, marginTop: 8 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: fonts.regular,
+  },
+  textArea: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: fonts.regular,
+    minHeight: 90,
+    textAlignVertical: "top",
+  },
+  dots: {
+    flexDirection: "row",
+    alignSelf: "center",
+    gap: 6,
+    marginTop: 8,
+  },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  footerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
-  footerBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 16,
+  },
+  footerBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
   footerBtnText: { fontFamily: fonts.semiBold },
 });

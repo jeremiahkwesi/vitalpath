@@ -1,4 +1,3 @@
-// functions/src/index.ts
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
@@ -56,6 +55,8 @@ type Profile = {
   country?: string;
   dietaryPreferences?: string[];
   allergies?: string[];
+  // optional extension
+  fitnessGoal?: string;
 };
 
 // Helpers
@@ -147,7 +148,6 @@ function canonicalizeGhanaDishName(
       if (p.test(text)) return entry.canonical;
     }
   }
-  // If country Ghana and generic dish string contains "stew", "soup" etc., keep as-is.
   if (preferGhana) return name;
   return name;
 }
@@ -178,6 +178,7 @@ export const healthChat = onCall(
         profile.height ?? "N/A"
       }m\n` +
       `• Goal: ${profile.goal || "N/A"}\n` +
+      `• Fitness Goal: ${profile.fitnessGoal || "N/A"}\n` +
       `• Daily Calories: ${profile.dailyCalories ?? "N/A"} kcal\n\n` +
       `TODAY\n` +
       `• Calories: ${profile.todayStats?.caloriesConsumed ?? 0} eaten, ${
@@ -300,11 +301,6 @@ export const analyzeMeal = onCall(
 function pickLabels(
   json: any
 ): Array<{ label?: string; score?: number }> {
-  // Handles:
-  // - [{ label, score }, ...]
-  // - [{ labels: [...] }]
-  // - { labels: [...] }
-  // - { data: { labels: [...] } }
   if (!json) return [];
   if (Array.isArray(json)) {
     if (json.length && Array.isArray(json[0]?.labels)) {
@@ -340,7 +336,7 @@ export const imageLabeler = onCall(
         "HUGGING_FACE_TOKEN not configured"
       );
 
-    const MODEL = "nateraw/food101"; // swap to a Ghana-focused model if available
+    const MODEL = "nateraw/food101";
     const url = `https://api-inference.huggingface.co/models/${MODEL}`;
 
     try {
@@ -382,7 +378,7 @@ export const imageLabeler = onCall(
   }
 );
 
-// ---------- Analyze Meal Image (with Ghanaian lexicon) ----------
+// ---------- Analyze Meal Image (robust plate decomposition) ----------
 export const analyzeMealImage = onCall(
   { secrets: [GEMINI_API_KEY] },
   async (req) => {
@@ -404,8 +400,10 @@ export const analyzeMealImage = onCall(
       model: "gemini-1.5-flash",
       systemInstruction:
         "You are VitalPath AI. Analyze food images and estimate nutrition for the served portion (not per 100 g). " +
-        "Estimate portion grams and give totals. If labelHint is provided, use it as the likely dish name. " +
-        "Return only valid JSON per the schema.",
+        "Decompose the plate into all components: mains, sides, sauces, condiments, oils, dressings, and beverages visible. " +
+        "Infer preparation methods (grilled, fried, stewed) and reflect likely oil/fat contributions. " +
+        "Estimate portion grams and give totals. If labelHint is provided, bias dish name toward it. " +
+        "Return ONLY valid JSON per the schema.",
     });
 
     const schemaV2 =
@@ -415,14 +413,14 @@ export const analyzeMealImage = onCall(
       `    "name": "string",\n` +
       `    "portionGrams": number,\n` +
       `    "servingText": "string",\n` +
-      `    "items": [ { "name": "string", "grams": number, "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { [k: string]: number } } ],\n` +
+      `    "items": [ { "name": "string", "grams": number, "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { [k: string]: number }, "notes": "optional prep/sauce" } ],\n` +
       `    "totals": { "calories": number, "protein": number, "carbs": number, "fat": number, "micros": { "fiber": number, "sodium": number, "potassium": number, "vitaminC": number, "calcium": number, "iron": number } },\n` +
       `    "confidence": number\n` +
       `  }\n` +
       `}`;
 
     const userContext =
-      `User goal: ${profile.goal || "N/A"}; Daily kcal target: ${
+      `User goal: ${profile.goal || "N/A"}; Fitness goal: ${profile.fitnessGoal || "N/A"}; Daily kcal target: ${
         profile.dailyCalories ?? "N/A"
       }.\n` +
       `Dietary preferences: ${(profile.dietaryPreferences || []).join(", ") ||
@@ -489,6 +487,7 @@ export const analyzeMealImage = onCall(
             carbs: num(it?.carbs),
             fat: num(it?.fat),
             micros: it?.micros || {},
+            notes: it?.notes ? String(it?.notes) : undefined,
           }))
         : [];
 
@@ -728,7 +727,7 @@ export const nutritionixSearch = onCall(
   }
 );
 
-// ---------- Curate Initial AI Plan (tight constraints) ----------
+// ---------- Curate Initial AI Plan ----------
 export const curateInitialPlan = onCall(
   { secrets: [GEMINI_API_KEY] },
   async (req) => {
@@ -820,6 +819,7 @@ export const curateInitialPlan = onCall(
       `- Body Type: ${profile.bodyType || "other"}\n` +
       `- Activity: ${profile.activityLevel || "moderate"}\n` +
       `- Goal: ${profile.goal}\n` +
+      `- Fitness Goal: ${profile.fitnessGoal || "general_health"}\n` +
       `- Country: ${profile.country || "Unknown"}\n` +
       `- Dietary Prefs: ${(profile.dietaryPreferences || []).join(", ") ||
         "none"}\n` +

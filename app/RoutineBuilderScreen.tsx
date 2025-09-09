@@ -1,4 +1,3 @@
-// app/RoutineBuilderScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -14,13 +13,16 @@ import {
 } from "react-native";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
-import { useRoute, useNavigation, useFocusEffect } from "@react-navigation/native";
+import {
+  useRoute,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../src/context/AuthContext";
 import { saveRoutine } from "../src/services/routines";
 import Select from "../src/ui/components/Select";
 import { generateWorkoutRoutineLocal } from "../src/services/aiPlans";
-import { Ionicons } from "@expo/vector-icons";
 
 type Day = "Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat";
 const DAYS: Day[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -33,8 +35,18 @@ const SET_TYPES = [
   { label: "Timed", value: "timed" },
 ] as const;
 
-type DraftSet = { reps?: string; restSec: number; type: (typeof SET_TYPES)[number]["value"] };
-type DraftItem = { externalId?: string; name: string; day: Day; groupId?: string; sets: DraftSet[] };
+type DraftSet = {
+  reps?: string;
+  restSec: number;
+  type: (typeof SET_TYPES)[number]["value"];
+};
+type DraftItem = {
+  externalId?: string;
+  name: string;
+  day: Day;
+  groupId?: string;
+  sets: DraftSet[];
+};
 
 export default function RoutineBuilderScreen() {
   const { theme } = useTheme();
@@ -44,19 +56,27 @@ export default function RoutineBuilderScreen() {
 
   const [name, setName] = useState("My Workout");
   const [items, setItems] = useState<DraftItem[]>([]);
+  const [selectedDay, setSelectedDay] = useState<Day>(
+    DAYS[new Date().getDay()] || "Mon"
+  );
 
   const [showAI, setShowAI] = useState(false);
   const [aiDays, setAIDays] = useState("3");
   const [aiGoal, setAIGoal] = useState("hypertrophy");
   const [aiLevel, setAILevel] = useState("beginner");
   const [aiSession, setAISession] = useState("60");
-  const [aiEquip, setAIEquip] = useState<string[]>(["Barbell", "Dumbbell", "Bodyweight"]);
+  const [aiEquip, setAIEquip] = useState<string[]>([
+    "Barbell",
+    "Dumbbell",
+    "Bodyweight",
+  ]);
   const [aiFocus, setAIFocus] = useState("full_body");
   const [busy, setBusy] = useState(false);
 
-  const draftKey = user?.uid ? `routine:draft:${user.uid}` : "routine:draft:anon";
+  const draftKey = user?.uid
+    ? `routine:draft:${user.uid}`
+    : "routine:draft:anon";
 
-  // Load draft once
   useEffect(() => {
     (async () => {
       try {
@@ -70,7 +90,6 @@ export default function RoutineBuilderScreen() {
     })();
   }, [draftKey]);
 
-  // Reload draft on focus (captures "Add" from Browse)
   useFocusEffect(
     React.useCallback(() => {
       let active = true;
@@ -89,17 +108,18 @@ export default function RoutineBuilderScreen() {
     }, [draftKey])
   );
 
-  // Handle direct add and openAI param
   useFocusEffect(
     React.useCallback(() => {
-      const ex = route.params?.addExercise as { id?: string; name: string } | undefined;
+      const ex = route.params?.addExercise as
+        | { id?: string; name: string }
+        | undefined;
       if (ex && ex.name) {
         setItems((s) => [
           ...s,
           {
             externalId: ex.id ? String(ex.id) : undefined,
             name: ex.name,
-            day: "Mon",
+            day: selectedDay,
             sets: [{ reps: "8-12", restSec: 90, type: "normal" }],
           },
         ]);
@@ -110,10 +130,9 @@ export default function RoutineBuilderScreen() {
         navigation.setParams({ openAI: undefined });
       }
       return () => {};
-    }, [route.params?.addExercise, route.params?.openAI, navigation])
+    }, [route.params?.addExercise, route.params?.openAI, navigation, selectedDay])
   );
 
-  // Persist draft
   useEffect(() => {
     (async () => {
       try {
@@ -144,21 +163,14 @@ export default function RoutineBuilderScreen() {
       next.splice(idx + 1, 0, dup);
       return next;
     });
-  const clearAll = () => {
-    Alert.alert("Clear workout", "Remove all exercises?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Clear",
-        style: "destructive",
-        onPress: () => setItems([]),
-      },
-    ]);
-  };
 
   const addSet = (idx: number) =>
     setItems((s) => {
       const next = [...s];
-      next[idx].sets = [...next[idx].sets, { reps: "8-12", restSec: 90, type: "normal" }];
+      next[idx].sets = [
+        ...next[idx].sets,
+        { reps: "8-12", restSec: 90, type: "normal" },
+      ];
       return next;
     });
   const updateSet = (idx: number, sIdx: number, patch: Partial<DraftSet>) =>
@@ -178,10 +190,23 @@ export default function RoutineBuilderScreen() {
       return next;
     });
 
+  const clearAll = () => {
+    Alert.alert("Clear workout", "Remove all exercises?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: () => setItems([]),
+      },
+    ]);
+  };
+
   const onSave = async () => {
-    if (!user?.uid) return Alert.alert("Sign in", "Please sign in to save workouts.");
+    if (!user?.uid)
+      return Alert.alert("Sign in", "Please sign in to save workouts.");
     if (!name.trim()) return Alert.alert("Name", "Enter a workout name.");
-    if (!items.length) return Alert.alert("Empty", "Add at least one exercise.");
+    if (!items.length)
+      return Alert.alert("Empty", "Add at least one exercise.");
     setBusy(true);
     try {
       await saveRoutine(user.uid, {
@@ -209,9 +234,13 @@ export default function RoutineBuilderScreen() {
     }
   };
 
-  const startSession = () => {
-    if (!items.length) return Alert.alert("Empty", "Add at least one exercise.");
-    navigation.navigate("WorkoutSession", { workout: { name, items } });
+  const startSession = (day?: Day) => {
+    if (!items.length)
+      return Alert.alert("Empty", "Add at least one exercise.");
+    const perDay = day ? items.filter((i) => i.day === day) : items;
+    if (!perDay.length)
+      return Alert.alert("No items", `No exercises for ${day || selectedDay}.`);
+    navigation.navigate("WorkoutSession", { workout: { name, items: perDay } });
   };
 
   const generateAI = async () => {
@@ -221,7 +250,10 @@ export default function RoutineBuilderScreen() {
         daysPerWeek: Math.max(2, Math.min(6, parseInt(aiDays, 10) || 3)),
         goal: aiGoal as any,
         experience: aiLevel as any,
-        sessionLengthMin: Math.max(30, Math.min(120, parseInt(aiSession, 10) || 60)),
+        sessionLengthMin: Math.max(
+          30,
+          Math.min(120, parseInt(aiSession, 10) || 60)
+        ),
         equipment: aiEquip,
         focus: aiFocus as any,
       });
@@ -247,7 +279,9 @@ export default function RoutineBuilderScreen() {
   };
   const isSelected = (val: string) => aiEquip.includes(val);
   const toggleEquip = (val: string) =>
-    setAIEquip((s) => (isSelected(val) ? s.filter((v) => v !== val) : [...s, val]));
+    setAIEquip((s) =>
+      isSelected(val) ? s.filter((v) => v !== val) : [...s, val]
+    );
 
   const dayGroups = useMemo(() => {
     const map = new Map<Day, DraftItem[]>();
@@ -257,10 +291,13 @@ export default function RoutineBuilderScreen() {
       arr.push(it);
       map.set(it.day, arr);
     }
-    return DAYS.map((d) => ({ day: d, items: map.get(d) || [] })).filter(
-      (g) => g.items.length > 0
-    );
+    return DAYS.map((d) => ({ day: d, items: map.get(d) || [] }));
   }, [items]);
+
+  const selectedList = useMemo(
+    () => dayGroups.find((g) => g.day === selectedDay)?.items || [],
+    [dayGroups, selectedDay]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -274,179 +311,391 @@ export default function RoutineBuilderScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>Workout Builder</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Workout Builder
+        </Text>
 
+        {/* Day tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, marginTop: 8 }}
+        >
+          {DAYS.map((d) => {
+            const active = selectedDay === d;
+            const count =
+              dayGroups.find((g) => g.day === d)?.items.length || 0;
+            return (
+              <TouchableOpacity
+                key={d}
+                onPress={() => setSelectedDay(d)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  backgroundColor: active
+                    ? theme.colors.primary
+                    : theme.colors.surface2,
+                }}
+              >
+                <Text
+                  style={{
+                    color: active ? "#fff" : theme.colors.text,
+                    fontFamily: fonts.semiBold,
+                  }}
+                >
+                  {d} {count ? `(${count})` : ""}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Header / controls */}
         <View
           style={[
             styles.card,
-            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
           ]}
         >
-          <Text style={[styles.label, { color: theme.colors.text }]}>Workout name</Text>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Workout name
+          </Text>
           <TextInput
             style={[
               styles.input,
-              { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
             ]}
             value={name}
             onChangeText={setName}
             placeholder="e.g., Upper/Lower Split"
             placeholderTextColor={theme.colors.textMuted}
           />
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-            <TouchableOpacity onPress={addExercise} style={[styles.btn, { backgroundColor: theme.colors.primary }]}>
-              <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Add exercise</Text>
+
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 8,
+              marginTop: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <TouchableOpacity
+              onPress={addExercise}
+              style={[
+                styles.btn,
+                { backgroundColor: theme.colors.primary },
+              ]}
+            >
+              <Text
+                style={{ color: "#fff", fontFamily: fonts.semiBold }}
+              >
+                Add exercise
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowAI(true)}
-              style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                  borderWidth: 1,
+                },
+              ]}
             >
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Generate with AI</Text>
+              <Text
+                style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+              >
+                Generate with AI
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => startSession(selectedDay)}
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <Text
+                style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+              >
+                Start {selectedDay}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onSave}
               disabled={busy}
               style={[
                 styles.btn,
-                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1, opacity: busy ? 0.7 : 1 },
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                  borderWidth: 1,
+                  opacity: busy ? 0.7 : 1,
+                },
               ]}
             >
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                {busy ? "Saving..." : "Save"}
+              <Text
+                style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+              >
+                {busy ? "Saving..." : "Save routine"}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={startSession}
-              style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
-            >
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Start Session</Text>
             </TouchableOpacity>
             {!!items.length && (
               <TouchableOpacity
                 onPress={clearAll}
                 style={[styles.btn, { backgroundColor: "#FF6B6B" }]}
               >
-                <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Clear All</Text>
+                <Text
+                  style={{ color: "#fff", fontFamily: fonts.semiBold }}
+                >
+                  Clear All
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        {!items.length ? (
+        {/* Items for selected day */}
+        {!selectedList.length ? (
           <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-            No exercises yet. Use “Add exercise” or “Generate with AI”.
+            No exercises for {selectedDay}. Use “Add exercise” or
+            “Generate with AI”.
           </Text>
         ) : (
-          dayGroups.map((g) => (
-            <View key={g.day} style={{ marginTop: 12 }}>
-              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold, marginBottom: 6 }}>
-                {g.day}
-              </Text>
-              {g.items.map((it, idx) => {
-                const globalIdx = items.indexOf(it);
-                return (
-                  <View
-                    key={`${it.name}-${idx}-${g.day}`}
-                    style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                  >
-                    <Text style={[styles.exercise, { color: theme.colors.text }]}>
-                      {it.name} {it.groupId ? `• Group ${it.groupId}` : ""}
-                    </Text>
+          selectedList.map((it) => {
+            const globalIdx = items.indexOf(it);
+            return (
+              <View
+                key={`${it.name}-${globalIdx}-${it.day}`}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.exercise, { color: theme.colors.text }]}
+                >
+                  {it.name} {it.groupId ? `• Group ${it.groupId}` : ""}
+                </Text>
 
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flex: 1 }}>
                     <Select
                       label="Training day"
                       value={it.day}
                       items={DAYS.map((d) => ({ label: d, value: d }))}
-                      onChange={(v) => updateItem(globalIdx, { day: v as Day })}
+                      onChange={(v) =>
+                        updateItem(globalIdx, { day: v as Day })
+                      }
                     />
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <Select
                       label="Default set type"
                       value={it.sets[0]?.type || "normal"}
                       items={[...SET_TYPES]}
-                      onChange={(v) => updateItem(globalIdx, { sets: it.sets.map((s) => ({ ...s, type: v as any })) })}
+                      onChange={(v) =>
+                        updateItem(globalIdx, {
+                          sets: it.sets.map((s) => ({ ...s, type: v as any })),
+                        })
+                      }
                     />
-
-                    <Text style={[styles.setsTitle, { color: theme.colors.text }]}>Sets</Text>
-                    {it.sets.map((s, sIdx) => (
-                      <View key={`set-${sIdx}`} style={{ marginBottom: 8 }}>
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.small, { color: theme.colors.textMuted }]}>Reps</Text>
-                            <TextInput
-                              style={[
-                                styles.input,
-                                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-                              ]}
-                              value={s.reps ?? ""}
-                              onChangeText={(t) => updateSet(globalIdx, sIdx, { reps: t })}
-                              placeholder="e.g., 8-12 or 10"
-                              placeholderTextColor={theme.colors.textMuted}
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.small, { color: theme.colors.textMuted }]}>Rest (sec)</Text>
-                            <TextInput
-                              style={[
-                                styles.input,
-                                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
-                              ]}
-                              value={String(s.restSec)}
-                              onChangeText={(t) =>
-                                updateSet(globalIdx, sIdx, {
-                                  restSec: Math.max(0, parseInt(t || "0", 10)),
-                                })
-                              }
-                              keyboardType="numeric"
-                            />
-                          </View>
-                        </View>
-                        <View style={{ flexDirection: "row", gap: 8, marginTop: 6, alignItems: "center" }}>
-                          <Select
-                            label="Set type"
-                            value={s.type}
-                            items={[...SET_TYPES]}
-                            onChange={(v) => updateSet(globalIdx, sIdx, { type: v as any })}
-                          />
-                          <TouchableOpacity
-                            onPress={() => removeSet(globalIdx, sIdx)}
-                            style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
-                          >
-                            <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Remove set</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))}
-
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        onPress={() => addSet(globalIdx)}
-                        style={[styles.addSetBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
-                      >
-                        <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>+ Add set</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => duplicateItem(globalIdx)}
-                        style={[styles.addSetBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
-                      >
-                        <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Duplicate</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => removeItem(globalIdx)}
-                        style={[styles.removeBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
-                      >
-                        <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Remove exercise</Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
-                );
-              })}
-            </View>
-          ))
+                </View>
+
+                <Text
+                  style={[styles.setsTitle, { color: theme.colors.text }]}
+                >
+                  Sets
+                </Text>
+                {it.sets.map((s, sIdx) => (
+                  <View
+                    key={`set-${sIdx}`}
+                    style={[
+                      styles.setRow,
+                      { borderColor: theme.colors.border },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.small,
+                          { color: theme.colors.textMuted },
+                        ]}
+                      >
+                        Reps
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            backgroundColor: theme.colors.surface2,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text,
+                          },
+                        ]}
+                        value={s.reps ?? ""}
+                        onChangeText={(t) =>
+                          updateSet(globalIdx, sIdx, { reps: t })
+                        }
+                        placeholder="e.g., 8-12 or 10"
+                        placeholderTextColor={theme.colors.textMuted}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.small,
+                          { color: theme.colors.textMuted },
+                        ]}
+                      >
+                        Rest (sec)
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            backgroundColor: theme.colors.surface2,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text,
+                          },
+                        ]}
+                        value={String(s.restSec)}
+                        onChangeText={(t) =>
+                          updateSet(globalIdx, sIdx, {
+                            restSec: Math.max(
+                              0,
+                              parseInt(t || "0", 10)
+                            ),
+                          })
+                        }
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Select
+                        label="Set type"
+                        value={s.type}
+                        items={[...SET_TYPES]}
+                        onChange={(v) =>
+                          updateSet(globalIdx, sIdx, { type: v as any })
+                        }
+                      />
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => removeSet(globalIdx, sIdx)}
+                      style={[
+                        styles.smallBtn,
+                        {
+                          backgroundColor: theme.colors.surface2,
+                          borderColor: theme.colors.border,
+                          alignSelf: "flex-end",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.text,
+                          fontFamily: fonts.semiBold,
+                        }}
+                      >
+                        Remove set
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => addSet(globalIdx)}
+                    style={[
+                      styles.addSetBtn,
+                      {
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.text,
+                        fontFamily: fonts.semiBold,
+                      }}
+                    >
+                      + Add set
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => duplicateItem(globalIdx)}
+                    style={[
+                      styles.addSetBtn,
+                      {
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.text,
+                        fontFamily: fonts.semiBold,
+                      }}
+                    >
+                      Duplicate exercise
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => removeItem(globalIdx)}
+                    style={[
+                      styles.removeBtn,
+                      {
+                        backgroundColor: theme.colors.surface2,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: theme.colors.text,
+                        fontFamily: fonts.semiBold,
+                      }}
+                    >
+                      Remove exercise
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
         )}
 
         {/* AI Modal */}
         <Modal visible={showAI} transparent animationType="slide">
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" }}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.35)",
+              justifyContent: "flex-end",
+            }}
+          >
             <View
               style={{
                 borderTopLeftRadius: 16,
@@ -458,10 +707,26 @@ export default function RoutineBuilderScreen() {
                 maxHeight: "88%",
               }}
             >
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <Text style={[styles.title, { color: theme.colors.text }]}>AI Routine Builder</Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={[styles.title, { color: theme.colors.text }]}>
+                  AI Routine Builder
+                </Text>
                 <TouchableOpacity onPress={() => setShowAI(false)}>
-                  <Text style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}>Close</Text>
+                  <Text
+                    style={{
+                      color: theme.colors.primary,
+                      fontFamily: fonts.semiBold,
+                    }}
+                  >
+                    Close
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -509,21 +774,49 @@ export default function RoutineBuilderScreen() {
                   ]}
                   onChange={(v) => setAIFocus(v as string)}
                 />
-                <Text style={[styles.small, { color: theme.colors.textMuted }]}>Session length (minutes)</Text>
+                <Text
+                  style={[styles.small, { color: theme.colors.textMuted }]}
+                >
+                  Session length (minutes)
+                </Text>
                 <TextInput
                   style={[
                     styles.input,
-                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+                    {
+                      backgroundColor: theme.colors.surface2,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    },
                   ]}
                   value={aiSession}
                   onChangeText={setAISession}
                   keyboardType="numeric"
                 />
-                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold, marginTop: 8 }}>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontFamily: fonts.semiBold,
+                    marginTop: 8,
+                  }}
+                >
                   Available equipment
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                  {["Barbell", "Dumbbell", "Machines", "Kettlebell", "Bands", "Bodyweight"].map((e) => {
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    marginTop: 6,
+                  }}
+                >
+                  {[
+                    "Barbell",
+                    "Dumbbell",
+                    "Machines",
+                    "Kettlebell",
+                    "Bands",
+                    "Bodyweight",
+                  ].map((e) => {
                     const active = isSelected(e);
                     return (
                       <TouchableOpacity
@@ -533,12 +826,21 @@ export default function RoutineBuilderScreen() {
                           borderRadius: 999,
                           borderWidth: 1,
                           borderColor: theme.colors.border,
-                          backgroundColor: active ? theme.colors.primary : theme.colors.surface2,
+                          backgroundColor: active
+                            ? theme.colors.primary
+                            : theme.colors.surface2,
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                         }}
                       >
-                        <Text style={{ color: active ? "#fff" : theme.colors.text, fontFamily: fonts.semiBold }}>{e}</Text>
+                        <Text
+                          style={{
+                            color: active ? "#fff" : theme.colors.text,
+                            fontFamily: fonts.semiBold,
+                          }}
+                        >
+                          {e}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -549,10 +851,16 @@ export default function RoutineBuilderScreen() {
                   disabled={busy}
                   style={[
                     styles.apply,
-                    { backgroundColor: theme.colors.primary, marginTop: 12, opacity: busy ? 0.7 : 1 },
+                    {
+                      backgroundColor: theme.colors.primary,
+                      marginTop: 12,
+                      opacity: busy ? 0.7 : 1,
+                    },
                   ]}
                 >
-                  <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
+                  <Text
+                    style={{ color: "#fff", fontFamily: fonts.semiBold }}
+                  >
                     {busy ? "Generating…" : "Generate Routine"}
                   </Text>
                 </TouchableOpacity>
@@ -567,15 +875,60 @@ export default function RoutineBuilderScreen() {
 
 const styles = StyleSheet.create({
   title: { fontFamily: fonts.bold, fontSize: 20 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 12,
+  },
   label: { fontFamily: fonts.semiBold, marginBottom: 6 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    fontFamily: fonts.regular,
+  },
   exercise: { fontFamily: fonts.semiBold, fontSize: 14, marginBottom: 6 },
   setsTitle: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
   small: { fontFamily: fonts.regular, fontSize: 12 },
-  btn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
-  smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
-  addSetBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, alignSelf: "flex-start", marginTop: 6 },
-  removeBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, alignSelf: "flex-start", marginTop: 10 },
-  apply: { borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  smallBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  addSetBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
+  removeBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+    marginTop: 10,
+  },
+  apply: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  setRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    marginBottom: 6,
+  },
 });

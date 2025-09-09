@@ -1,4 +1,3 @@
-// app/WeeklyCheckInScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from "react-native";
 import { useTheme } from "../src/ui/ThemeProvider";
@@ -6,6 +5,7 @@ import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
 import { addWeight, listWeights, weeklyAvg } from "../src/utils/weight";
 import { suggestCalorieAdjustment } from "../src/utils/checkin";
+import { Card, SectionHeader } from "../src/ui/components/UKit";
 
 function todayISO(): string {
   return new Date().toISOString().split("T")[0];
@@ -68,29 +68,37 @@ export default function WeeklyCheckInScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.header, { color: theme.colors.text }]}>Weekly Check‑in</Text>
-      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Log weight (kg), review trend, and update daily calories automatically.
-      </Text>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <SectionHeader title="Weekly Check‑in" subtitle="Log weight and adjust targets" />
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Log</Text>
+      <Card>
+        <SectionHeader title="Log" />
         <TextInput
-          style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+          style={[
+            styles.input,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+          ]}
           placeholder="Weight (kg)"
           placeholderTextColor={theme.colors.textMuted}
           keyboardType="decimal-pad"
           value={kg}
           onChangeText={setKg}
         />
-        <TouchableOpacity onPress={onSave} disabled={busy} style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, opacity: busy ? 0.7 : 1 }]}>
+        <TouchableOpacity
+          onPress={onSave}
+          disabled={busy}
+          style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, opacity: busy ? 0.7 : 1 }]}
+        >
           <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>{busy ? "Saving…" : "Save"}</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Trend</Text>
+      <Card>
+        <SectionHeader title="Trend" />
         <Text style={{ color: theme.colors.textMuted }}>
           1‑week avg: {avg1 != null ? `${avg1} kg` : "—"} • 2‑week avg: {avg2 != null ? `${avg2} kg` : "—"}
         </Text>
@@ -101,12 +109,14 @@ export default function WeeklyCheckInScreen() {
             </Text>
           ))}
         </View>
-      </View>
+      </Card>
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Adjustment</Text>
+      <Card>
+        <SectionHeader title="Adjustment" />
         {!plan ? (
-          <Text style={{ color: theme.colors.textMuted }}>Not enough data yet (log weights for at least a week).</Text>
+          <Text style={{ color: theme.colors.textMuted }}>
+            Not enough data yet (log weights for at least a week).
+          </Text>
         ) : (
           <>
             <Text style={{ color: theme.colors.text }}>{plan.reason}</Text>
@@ -114,20 +124,20 @@ export default function WeeklyCheckInScreen() {
               Suggested: {plan.delta > 0 ? "+" : ""}
               {plan.delta} kcal/day → New target {plan.newTarget} kcal/day
             </Text>
-            <TouchableOpacity onPress={apply} style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, marginTop: 8 }]}>
+            <TouchableOpacity
+              onPress={apply}
+              style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, marginTop: 8 }]}
+            >
               <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Apply new target</Text>
             </TouchableOpacity>
           </>
         )}
-      </View>
+      </Card>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
-  sub: { fontFamily: fonts.semiBold, marginBottom: 6 },
   input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular, marginBottom: 8 },
   btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
 });

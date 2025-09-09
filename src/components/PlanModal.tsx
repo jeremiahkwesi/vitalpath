@@ -1,4 +1,3 @@
-// src/components/PlanModal.tsx
 import React, { useEffect, useState } from "react";
 import {
   Modal,
@@ -14,9 +13,10 @@ import { db, functions } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { fonts } from "../constants/fonts";
 import { useTheme } from "../ui/ThemeProvider";
-import { applyPlanWeekToPlanner } from "../utils/mealPlanner";
+import { applyPlanWeekToPlanner } from "../services/planner";
 import { useToast } from "../ui/components/Toast";
 import { useHaptics } from "../ui/hooks/useHaptics";
+import { Card, SectionHeader } from "../ui/components/UKit";
 
 type AIPlan = {
   targetCalories: number;
@@ -127,7 +127,6 @@ export default function PlanModal({
       const p = resp?.data?.plan;
       if (p) {
         setPlan(p);
-        // Persist to Firestore so it's available later
         await setDoc(
           doc(db, "users", uid, "plans", "current"),
           { ...p, userId: uid, updatedAt: Date.now() },
@@ -205,20 +204,8 @@ export default function PlanModal({
               style={{ maxHeight: "80%" }}
               showsVerticalScrollIndicator={false}
             >
-              <View
-                style={[
-                  styles.card,
-                  {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.cardTitle, { color: theme.colors.text }]}
-                >
-                  Targets
-                </Text>
+              <Card>
+                <SectionHeader title="Targets" />
                 <Text style={[styles.line, { color: theme.colors.text }]}>
                   Calories: {Math.round(plan.targetCalories)} kcal
                 </Text>
@@ -235,28 +222,17 @@ export default function PlanModal({
                     {plan.micros.sodium ?? 0}mg, K{" "}
                     {plan.micros.potassium ?? 0}mg, vit C{" "}
                     {plan.micros.vitaminC ?? 0}mg, Ca{" "}
-                    {plan.micros.calcium ?? 0}mg, Fe {plan.micros.iron ?? 0}mg
+                    {plan.micros.calcium ?? 0}mg, Fe{" "}
+                    {plan.micros.iron ?? 0}mg
                   </Text>
                 )}
                 <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>
                   Timeline: {plan.adjustedTimelineWeeks} weeks
                 </Text>
-              </View>
+              </Card>
 
-              <View
-                style={[
-                  styles.card,
-                  {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.cardTitle, { color: theme.colors.text }]}
-                >
-                  Weekly Workouts (example)
-                </Text>
+              <Card>
+                <SectionHeader title="Weekly Workouts (example)" />
                 {plan.weeklyPlan.workouts.map((d, i) => (
                   <View key={`w-${i}`} style={{ marginBottom: 8 }}>
                     <Text
@@ -293,22 +269,10 @@ export default function PlanModal({
                     )}
                   </View>
                 ))}
-              </View>
+              </Card>
 
-              <View
-                style={[
-                  styles.card,
-                  {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.cardTitle, { color: theme.colors.text }]}
-                >
-                  Weekly Meals (example)
-                </Text>
+              <Card>
+                <SectionHeader title="Weekly Meals (example)" />
                 {plan.weeklyPlan.meals.map((d, i) => (
                   <View key={`m-${i}`} style={{ marginBottom: 8 }}>
                     <Text
@@ -332,48 +296,24 @@ export default function PlanModal({
                     ))}
                   </View>
                 ))}
-              </View>
+              </Card>
 
               {!!plan.countryFoods?.length && (
-                <View
-                  style={[
-                    styles.card,
-                    {
-                      borderColor: theme.colors.border,
-                      backgroundColor: theme.colors.surface,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.cardTitle, { color: theme.colors.text }]}
-                  >
-                    Common Foods
-                  </Text>
+                <Card>
+                  <SectionHeader title="Common foods" />
                   <Text style={{ color: theme.colors.textMuted }}>
                     {plan.countryFoods.slice(0, 12).join(" • ")}
                   </Text>
-                </View>
+                </Card>
               )}
 
               {!!plan.notes && (
-                <View
-                  style={[
-                    styles.card,
-                    {
-                      borderColor: theme.colors.border,
-                      backgroundColor: theme.colors.surface,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.cardTitle, { color: theme.colors.text }]}
-                  >
-                    Notes
-                  </Text>
+                <Card>
+                  <SectionHeader title="Notes" />
                   <Text style={{ color: theme.colors.textMuted }}>
                     {plan.notes}
                   </Text>
-                </View>
+                </Card>
               )}
 
               <TouchableOpacity
@@ -420,13 +360,6 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   link: { fontFamily: fonts.semiBold },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 12,
-  },
-  cardTitle: { fontFamily: fonts.semiBold, marginBottom: 6 },
   dayLabel: { fontFamily: fonts.semiBold },
   line: { fontFamily: fonts.regular },
   applyBtn: {

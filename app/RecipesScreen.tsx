@@ -1,4 +1,3 @@
-// app/RecipesScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -22,6 +21,7 @@ import {
   deleteRecipe,
   computeTotals,
 } from "../src/services/recipes";
+import { Card, SectionHeader, Pill } from "../src/ui/components/UKit";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -145,44 +145,35 @@ export default function RecipesScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.appBg }}
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
     >
-      <Text style={[styles.header, { color: theme.colors.text }]}>
-        My Recipes
-      </Text>
-      <Text style={{ color: theme.colors.textMuted }}>
-        Create multi-ingredient recipes with servings. Log per serving.
-      </Text>
-
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-        <TouchableOpacity
-          onPress={openNew}
-          style={[
-            styles.btn,
-            {
-              backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.primary,
-            },
-          ]}
-        >
-          <Text style={styles.btnTextLight}>New recipe</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <MealTypePicker value={mealType} onChange={setMealType} />
-      </View>
-
-      <TextInput
-        style={[
-          styles.search,
-          {
-            backgroundColor: theme.colors.surface2,
-            borderColor: theme.colors.border,
-            color: theme.colors.text,
-          },
-        ]}
-        placeholder="Filter recipes"
-        placeholderTextColor={theme.colors.textMuted}
-        value={q}
-        onChangeText={setQ}
-      />
+      <SectionHeader title="My recipes" subtitle="Create, edit, and log per serving" />
+      <Card>
+        <SectionHeader
+          title="Actions"
+          right={
+            <View style={{ flexDirection: "row" }}>
+              <Pill label="New recipe" icon="add-outline" onPress={openNew} />
+            </View>
+          }
+        />
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          <TextInput
+            style={[
+              styles.search,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Filter recipes"
+            placeholderTextColor={theme.colors.textMuted}
+            value={q}
+            onChangeText={setQ}
+          />
+          <MealTypePicker value={mealType} onChange={setMealType} />
+        </View>
+      </Card>
 
       {loading ? (
         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
@@ -190,20 +181,11 @@ export default function RecipesScreen() {
         </Text>
       ) : filtered.length === 0 ? (
         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-          {q ? "No recipes match your filter." : "No recipes yet. Tap “New recipe”."}
+          {q ? "No recipes match your filter." : "No recipes yet. Tap New recipe."}
         </Text>
       ) : (
         filtered.map((r) => (
-          <View
-            key={r.id}
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
+          <Card key={r.id}>
             <Text style={[styles.title, { color: theme.colors.text }]}>{r.name}</Text>
             <Text style={{ color: theme.colors.textMuted }}>
               Servings: {r.servings} • Totals: {r.totals.calories} kcal • P
@@ -214,10 +196,7 @@ export default function RecipesScreen() {
                 onPress={() => logOneServing(r)}
                 style={[
                   styles.smallBtn,
-                  {
-                    backgroundColor: theme.colors.primary,
-                    borderColor: theme.colors.primary,
-                  },
+                  { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
                 ]}
               >
                 <Text style={styles.btnTextLight}>Log 1 serving</Text>
@@ -226,32 +205,21 @@ export default function RecipesScreen() {
                 onPress={() => openEdit(r)}
                 style={[
                   styles.smallBtn,
-                  {
-                    backgroundColor: theme.colors.surface2,
-                    borderColor: theme.colors.border,
-                  },
+                  { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
                 ]}
               >
-                <Text
-                  style={{
-                    color: theme.colors.text,
-                    fontFamily: fonts.semiBold,
-                  }}
-                >
+                <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
                   Edit
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => remove(r)}
-                style={[
-                  styles.smallBtn,
-                  { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
-                ]}
+                style={[styles.smallBtn, { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" }]}
               >
                 <Text style={styles.btnTextLight}>Delete</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Card>
         ))
       )}
 
@@ -367,13 +335,7 @@ function RecipeEditorModal({
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
           ]}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginBottom: 8,
-            }}
-          >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
             <Text style={[styles.header, { color: theme.colors.text }]}>
               {value.id ? "Edit Recipe" : "New Recipe"}
             </Text>
@@ -418,9 +380,7 @@ function RecipeEditorModal({
               }
             />
 
-            <Text style={[styles.label, { color: theme.colors.text }]}>
-              Ingredients
-            </Text>
+            <Text style={[styles.label, { color: theme.colors.text }]}>Ingredients</Text>
             {(value.ingredients || []).map((it, idx) => (
               <View
                 key={idx}
@@ -569,10 +529,7 @@ function RecipeEditorModal({
                 </View>
                 <TouchableOpacity
                   onPress={() => removeIng(idx)}
-                  style={[
-                    styles.smallBtn,
-                    { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
-                  ]}
+                  style={[styles.smallBtn, { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" }]}
                 >
                   <Text style={styles.btnTextLight}>Remove</Text>
                 </TouchableOpacity>
@@ -582,28 +539,15 @@ function RecipeEditorModal({
               onPress={addIng}
               style={[
                 styles.smallBtn,
-                {
-                  backgroundColor: theme.colors.surface2,
-                  borderColor: theme.colors.border,
-                },
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
               ]}
             >
-              <Text
-                style={{
-                  color: theme.colors.text,
-                  fontFamily: fonts.semiBold,
-                }}
-              >
+              <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
                 + Add ingredient
               </Text>
             </TouchableOpacity>
 
-            <Text
-              style={[
-                styles.label,
-                { color: theme.colors.text, marginTop: 8 },
-              ]}
-            >
+            <Text style={[styles.label, { color: theme.colors.text, marginTop: 8 }]}>
               Steps
             </Text>
             <TextInput
@@ -682,7 +626,6 @@ function RecipeEditorModal({
 
 const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   label: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
   input: {
@@ -725,6 +668,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: fonts.regular,
-    marginTop: 8,
   },
 });

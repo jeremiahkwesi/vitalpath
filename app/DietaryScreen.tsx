@@ -1,5 +1,4 @@
-// app/DietaryScreen.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   TextInput,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/ui/ThemeProvider";
@@ -17,7 +17,12 @@ import { useAuth } from "../src/context/AuthContext";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { computeNutritionAlerts } from "../src/utils/nutritionAlerts";
-import { getHealthAssistantResponse } from "../src/services/healthAI";
+import {
+  getHealthAssistantResponse,
+  getDailyMealIdeasAI,
+} from "../src/services/healthAI";
+import Banner from "../src/components/Banner";
+import { Card, SectionHeader, StatTile } from "../src/ui/components/UKit";
 
 type WeekRow = {
   date: string;
@@ -56,39 +61,20 @@ const ProgressBar = React.memo(
     const pct = Math.min(100, Math.round((value / Math.max(1, max)) * 100));
     return (
       <View style={{ marginTop: 8 }}>
-        <Text style={{ fontFamily: fonts.medium, marginBottom: 4 }}>
+        <Text style={{ fontFamily: fonts.semiBold, marginBottom: 4 }}>
           {label}: {Math.round(value)} / {Math.round(max)}
         </Text>
         <View style={styles.progressContainer}>
           <View
-            style={[styles.progressBar, { width: `${pct}%`, backgroundColor: color }]}
+            style={[
+              styles.progressBar,
+              { width: `${pct}%`, backgroundColor: color },
+            ]}
           />
         </View>
       </View>
     );
   }
-);
-
-const Metric = React.memo(
-  ({
-    icon,
-    label,
-    value,
-    colorText,
-    colorMuted,
-  }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-    colorText: string;
-    colorMuted: string;
-  }) => (
-    <View style={styles.metric}>
-      <Ionicons name={icon} size={22} color={colorText} />
-      <Text style={[styles.metricValue, { color: colorText }]}>{value}</Text>
-      <Text style={[styles.metricLabel, { color: colorMuted }]}>{label}</Text>
-    </View>
-  )
 );
 
 const QuickAction = React.memo(
@@ -114,7 +100,7 @@ export default function DietaryScreen() {
   const { theme } = useTheme();
   const nav = useNavigation<any>();
   const { user, userProfile } = useAuth();
-  const { todayActivity, getTodayProgress, addWater, updateSteps } = useActivity();
+  const { todayActivity, getTodayProgress, addWater } = useActivity();
 
   const progress = useMemo(() => getTodayProgress(), [getTodayProgress]);
 
@@ -138,10 +124,9 @@ export default function DietaryScreen() {
     [todayActivity]
   );
 
-  const handleAddWater = useCallback((amount: number) => addWater(amount), [addWater]);
-  const handleAddSteps = useCallback(
-    (delta: number) => updateSteps((todayActivity?.steps || 0) + delta),
-    [updateSteps, todayActivity?.steps]
+  const handleAddWater = useCallback(
+    (amount: number) => addWater(amount),
+    [addWater]
   );
 
   const navActions = useMemo(
@@ -152,14 +137,14 @@ export default function DietaryScreen() {
           params: { origin: "home" },
         }),
       editMeals: () =>
-        nav.navigate("Plan", { screen: "MealsDiary", params: { origin: "home" } }),
-      scan: () => nav.navigate("Scan"),
+        nav.navigate("Plan", {
+          screen: "MealsDiary",
+          params: { origin: "home" },
+        } as any),
+      scan: () => nav.navigate("Plan", { screen: "Scan" } as any),
       planWeek: () =>
         nav.navigate("Plan", { screen: "Planner", params: { origin: "home" } }),
-      startWorkout: () =>
-        nav.navigate("Workouts", { screen: "WorkoutsHome" }),
-      library: () =>
-        nav.navigate("Plan", { screen: "Library", params: { origin: "home" } }),
+      startWorkout: () => nav.navigate("Workouts", { screen: "WorkoutsHome" }),
       recipes: () =>
         nav.navigate("Plan", { screen: "Recipes", params: { origin: "home" } }),
       pantry: () =>
@@ -221,7 +206,6 @@ export default function DietaryScreen() {
 
   const avg = (arr: number[]) =>
     arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-
   const weekAvgCalories = avg(week.map((w) => w.calories));
   const weekAvgSteps = avg(week.map((w) => w.steps));
   const weekWorkouts = week.reduce((a, b) => a + b.workouts, 0);
@@ -231,12 +215,14 @@ export default function DietaryScreen() {
     userProfile || null,
     todayActivity || null
   );
-
   const fallback: string[] = [];
-  const calRemainingRaw = targets.calories - (todayActivity?.totalCalories || 0);
+  const calRemainingRaw =
+    targets.calories - (todayActivity?.totalCalories || 0);
   if (calRemainingRaw < 0) {
     fallback.push(
-      `You’re over today by ${Math.abs(calRemainingRaw)} kcal. Consider a short walk (10–15 min) or lighter dinner.`
+      `You’re over today by ${Math.abs(
+        calRemainingRaw
+      )} kcal. Consider a short walk or lighter dinner.`
     );
   } else if (calRemainingRaw > 200) {
     fallback.push(
@@ -251,8 +237,25 @@ export default function DietaryScreen() {
       `Aim for 3+ workouts this week. Use AI Routine to plan quickly.`
     );
   }
-  if (!fallback.length) fallback.push("Great work today. Keep the streak alive!");
+  if (!fallback.length)
+    fallback.push("Great work today. Keep the streak alive!");
   const tips = (dietMsgs.length ? dietMsgs : fallback).slice(0, 3);
+
+  // Missing profile info detection
+  const missingBits = useMemo(() => {
+    const p = (userProfile || {}) as any;
+    const out: string[] = [];
+    if (!p.height) out.push("height");
+    if (!p.weight) out.push("weight");
+    if (!p.country) out.push("country");
+    if (!p.activityLevel) out.push("activity level");
+    if (!p.fitnessGoal) out.push("fitness goal");
+    return out;
+  }, [userProfile]);
+  const missingCritical = useMemo(
+    () => missingBits.some((f) => ["height", "weight"].includes(f)),
+    [missingBits]
+  );
 
   // AI Quick Coach
   const [showCoach, setShowCoach] = useState(false);
@@ -261,12 +264,23 @@ export default function DietaryScreen() {
   const [aiMsgs, setAiMsgs] = useState<
     { role: "user" | "assistant"; content: string }[]
   >([]);
+  const [mealsBusy, setMealsBusy] = useState(false);
+  const [mealIdeas, setMealIdeas] = useState<
+    { title: string; desc?: string; kcal?: number }[]
+  >([]);
 
   const buildContext = () => {
-    const macros = todayActivity?.macros || { protein: 0, carbs: 0, fat: 0 };
+    const macros = todayActivity?.macros || {
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    };
     const todayStats = {
       caloriesConsumed: todayActivity?.totalCalories || 0,
-      caloriesRemaining: Math.max(0, targets.calories - (todayActivity?.totalCalories || 0)),
+      caloriesRemaining: Math.max(
+        0,
+        targets.calories - (todayActivity?.totalCalories || 0)
+      ),
       steps: todayActivity?.steps || 0,
       waterIntake: todayActivity?.waterIntake || 0,
       mealsCount: (todayActivity?.meals || []).length,
@@ -283,8 +297,62 @@ export default function DietaryScreen() {
       dailyCalories: userProfile?.dailyCalories || undefined,
       macros: userProfile?.macros || undefined,
       healthConditions: userProfile?.healthConditions || [],
+      activityLevel: userProfile?.activityLevel,
+      fitnessGoal: userProfile?.fitnessGoal,
+      country: userProfile?.country,
       todayStats,
     };
+  };
+
+  const suggestMealsForToday = async (fromPantry: boolean) => {
+    if (missingCritical) {
+      Alert.alert(
+        "Complete profile",
+        "For accurate suggestions, please add your height and weight.",
+        [
+          { text: "Later", style: "cancel" },
+          {
+            text: "Update now",
+            onPress: () =>
+              // @ts-ignore
+              nav.navigate("Profile", { screen: "Setup", params: {} }),
+          },
+        ]
+      );
+    }
+    setMealsBusy(true);
+    try {
+      const remaining = Math.max(
+        0,
+        targets.calories - (todayActivity?.totalCalories || 0)
+      );
+      const ideas = await getDailyMealIdeasAI(
+        {
+          caloriesRemaining: remaining,
+          macrosRemaining: {
+            protein:
+              (userProfile?.macros?.protein || 0) -
+              (todayActivity?.macros?.protein || 0),
+            carbs:
+              (userProfile?.macros?.carbs || 0) -
+              (todayActivity?.macros?.carbs || 0),
+            fat:
+              (userProfile?.macros?.fat || 0) -
+              (todayActivity?.macros?.fat || 0),
+          },
+          usePantry: fromPantry,
+        },
+        userProfile || undefined
+      );
+      setMealIdeas(
+        ideas.map((i) => ({
+          title: i.title,
+          desc: (i.description || []).join(" "),
+          kcal: i.nutrition?.calories,
+        }))
+      );
+    } catch {}
+    setMealsBusy(false);
   };
 
   const askAI = async (msg: string) => {
@@ -292,9 +360,21 @@ export default function DietaryScreen() {
     if (!text) return;
     setAiBusy(true);
     try {
-      setAiMsgs((s) => [...s, { role: "user", content: text }]);
-      const reply = await getHealthAssistantResponse(text, buildContext(), aiMsgs);
-      setAiMsgs((s) => [...s, { role: "assistant", content: reply }]);
+      setAiMsgs((prev) => {
+        const next = [...prev, { role: "user" as const, content: text }];
+        (async () => {
+          const reply = await getHealthAssistantResponse(
+            text,
+            buildContext(),
+            next
+          );
+          setAiMsgs((final) => [
+            ...final,
+            { role: "assistant" as const, content: reply },
+          ]);
+        })().catch(() => {});
+        return next;
+      });
     } finally {
       setAiBusy(false);
     }
@@ -306,20 +386,28 @@ export default function DietaryScreen() {
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>Today</Text>
+      <SectionHeader title="Today" subtitle="Your daily overview" />
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Nutrition
-        </Text>
+      {!!missingBits.length && (
+        <Banner
+          variant={missingCritical ? "warning" : "info"}
+          title={missingCritical ? "Profile incomplete" : "Add a few details"}
+          message={
+            missingCritical
+              ? "Add height and weight for accurate targets and meal suggestions."
+              : `Add ${missingBits.slice(0, 3).join(", ")} to personalize your plan.`
+          }
+          actionLabel="Complete profile"
+          onAction={
+            // @ts-ignore
+            () => nav.navigate("Profile", { screen: "Setup", params: {} })
+          }
+          style={{ marginBottom: 8 }}
+        />
+      )}
+
+      <Card>
+        <SectionHeader title="Nutrition" />
         <ProgressBar
           label="Calories (kcal)"
           value={progress.caloriesConsumed}
@@ -352,48 +440,28 @@ export default function DietaryScreen() {
             />
           </View>
         </View>
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Activity
-        </Text>
-        <View style={styles.metricsRow}>
-          <Metric
-            icon="walk-outline"
-            label="Steps"
-            value={String(stats.steps)}
-            colorText={theme.colors.text}
-            colorMuted={theme.colors.textMuted}
-          />
-          <Metric
+      <Card>
+        <SectionHeader title="Activity" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <StatTile label="steps" value={`${stats.steps}`} icon="walk-outline" />
+          <StatTile
+            label="water (ml)"
+            value={`${stats.water}`}
             icon="water-outline"
-            label="Water (ml)"
-            value={String(stats.water)}
-            colorText={theme.colors.text}
-            colorMuted={theme.colors.textMuted}
           />
-          <Metric
+        </View>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <StatTile
+            label="workouts"
+            value={`${stats.workouts}`}
             icon="barbell-outline"
-            label="Workouts"
-            value={String(stats.workouts)}
-            colorText={theme.colors.text}
-            colorMuted={theme.colors.textMuted}
           />
-          <Metric
+          <StatTile
+            label="meals"
+            value={`${stats.meals}`}
             icon="restaurant-outline"
-            label="Meals"
-            value={String(stats.meals)}
-            colorText={theme.colors.text}
-            colorMuted={theme.colors.textMuted}
           />
         </View>
 
@@ -402,26 +470,24 @@ export default function DietaryScreen() {
             Quick add
           </Text>
           <View style={styles.chipRow}>
-            <QuickChip label="+250 ml water" onPress={() => handleAddWater(250)} />
-            <QuickChip label="+500 ml water" onPress={() => handleAddWater(500)} />
-            <QuickChip label="+500 steps" onPress={() => handleAddSteps(500)} />
-            <QuickChip label="+1000 steps" onPress={() => handleAddSteps(1000)} />
+            <QuickChip
+              label="+150 ml water"
+              onPress={() => handleAddWater(150)}
+            />
+            <QuickChip
+              label="+250 ml water"
+              onPress={() => handleAddWater(250)}
+            />
+            <QuickChip
+              label="+500 ml water"
+              onPress={() => handleAddWater(500)}
+            />
           </View>
         </View>
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          This week
-        </Text>
+      <Card>
+        <SectionHeader title="This week" />
         <Text style={{ color: theme.colors.textMuted }}>
           Avg kcal: {weekAvgCalories} (target {targets.calories}) • Workouts:{" "}
           {weekWorkouts} • Avg steps: {weekAvgSteps}
@@ -429,31 +495,68 @@ export default function DietaryScreen() {
         <Text style={{ color: theme.colors.textMuted, marginTop: 6 }}>
           Streak: {streak} day{streak === 1 ? "" : "s"}
         </Text>
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Your dietician
-        </Text>
+      <Card>
+        <SectionHeader title="Your dietician" />
         {tips.map((t, i) => (
           <Text
             key={i}
-            style={{
-              color: theme.colors.textMuted,
-              marginTop: i ? 6 : 0,
-            }}
+            style={{ color: theme.colors.textMuted, marginTop: i ? 6 : 0 }}
           >
             • {t}
           </Text>
         ))}
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+          <TouchableOpacity
+            onPress={() => suggestMealsForToday(false)}
+            disabled={mealsBusy}
+            style={[
+              styles.smallBtn,
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+            >
+              Meal suggestions
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => suggestMealsForToday(true)}
+            disabled={mealsBusy}
+            style={[
+              styles.smallBtn,
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+            >
+              From Pantry
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {!!mealIdeas.length && (
+          <View style={{ marginTop: 8 }}>
+            {mealIdeas.map((m, i) => (
+              <Text
+                key={`${m.title}-${i}`}
+                style={{ color: theme.colors.textMuted, marginTop: 4 }}
+              >
+                • {m.title}
+                {m.kcal ? ` — ~${m.kcal} kcal` : ""}{" "}
+                {m.desc ? `· ${m.desc}` : ""}
+              </Text>
+            ))}
+          </View>
+        )}
         <TouchableOpacity
           onPress={() => setShowCoach(true)}
           style={[
@@ -470,20 +573,10 @@ export default function DietaryScreen() {
             Ask AI coach
           </Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Quick actions
-        </Text>
+      <Card>
+        <SectionHeader title="Quick actions" />
         <View style={styles.actionsGrid}>
           <QuickAction
             icon="add-circle-outline"
@@ -516,12 +609,6 @@ export default function DietaryScreen() {
             onPress={navActions.startWorkout}
           />
           <QuickAction
-            icon="library-outline"
-            color="#7E57C2"
-            label="Library"
-            onPress={navActions.library}
-          />
-          <QuickAction
             icon="book-outline"
             color="#0097A7"
             label="Recipes"
@@ -540,7 +627,7 @@ export default function DietaryScreen() {
             onPress={navActions.checkin}
           />
         </View>
-      </View>
+      </Card>
 
       {showCoach && (
         <AIQuickCoachModal
@@ -578,166 +665,9 @@ const QuickChip = React.memo(
   }
 );
 
-function AIQuickCoachModal({
-  visible,
-  onClose,
-  busy,
-  messages,
-  onSend,
-  input,
-  setInput,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  busy: boolean;
-  messages: { role: "user" | "assistant"; content: string }[];
-  onSend: (m: string) => void;
-  input: string;
-  setInput: (s: string) => void;
-}) {
-  const { theme } = useTheme();
-  return !visible ? null : (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.35)",
-        justifyContent: "flex-end",
-      }}
-    >
-      <View
-        style={{
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
-          padding: 16,
-          maxHeight: "88%",
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: 10,
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              color: theme.colors.text,
-              fontFamily: fonts.semiBold,
-              fontSize: 18,
-            }}
-          >
-            AI Coach
-          </Text>
-          <TouchableOpacity onPress={onClose}>
-            <Text
-              style={{ color: theme.colors.primary, fontFamily: fonts.semiBold }}
-            >
-              Close
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={{ maxHeight: "72%" }}
-          contentContainerStyle={{ paddingBottom: 8 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.length === 0 ? (
-            <Text style={{ color: theme.colors.textMuted }}>
-              Ask anything: “What should I eat next to hit my macros?”, “Low‑sodium
-              dinner ideas?”, “Pre‑workout snack?”
-            </Text>
-          ) : (
-            messages.map((m, i) => (
-              <View
-                key={i}
-                style={{
-                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                  backgroundColor:
-                    m.role === "user"
-                      ? theme.colors.primary
-                      : theme.colors.surface2,
-                  borderRadius: 12,
-                  padding: 10,
-                  marginVertical: 4,
-                  maxWidth: "88%",
-                }}
-              >
-                <Text
-                  style={{
-                    color: m.role === "user" ? "#fff" : theme.colors.text,
-                    fontFamily: fonts.regular,
-                  }}
-                >
-                  {m.content}
-                </Text>
-              </View>
-            ))
-          )}
-          {busy && (
-            <View
-              style={{
-                padding: 8,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ActivityIndicator color={theme.colors.primary} />
-            </View>
-          )}
-        </ScrollView>
-
-        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          <TextInput
-            style={[
-              styles.inputField,
-              {
-                flex: 1,
-                backgroundColor: theme.colors.surface2,
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              },
-            ]}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Type a question…"
-            placeholderTextColor={theme.colors.textMuted}
-            editable={!busy}
-          />
-          <TouchableOpacity
-            onPress={() => {
-              if (busy) return;
-              const msg = input.trim();
-              if (!msg) return;
-              setInput("");
-              onSend(msg);
-            }}
-            style={[
-              styles.smallBtn,
-              { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-            ]}
-            disabled={busy}
-          >
-            <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Send</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-}
+// Keep AIQuickCoachModal from your current file
 
 const styles = StyleSheet.create({
-  title: { fontSize: 22, fontFamily: fonts.bold },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
-  sectionTitle: { fontFamily: fonts.semiBold, fontSize: 16, marginBottom: 8 },
   progressContainer: {
     height: 10,
     borderRadius: 6,
@@ -747,15 +677,6 @@ const styles = StyleSheet.create({
   progressBar: { height: "100%" },
   macrosRow: { flexDirection: "row", gap: 10, marginTop: 8 },
   macroItem: { flex: 1 },
-  metricsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    marginTop: 6,
-  },
-  metric: { alignItems: "center", flex: 1 },
-  metricValue: { fontFamily: fonts.semiBold, marginTop: 4 },
-  metricLabel: { fontSize: 12 },
   quickAddTitle: { fontFamily: fonts.semiBold, marginBottom: 8 },
   chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chip: {
@@ -771,23 +692,13 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 8,
   },
-  action: {
-    width: "30%",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-  },
+  action: { width: "30%", alignItems: "center", gap: 6, marginBottom: 12 },
   actionLabel: { fontFamily: fonts.semiBold },
   smallBtn: {
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  inputField: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    fontFamily: fonts.regular,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
   },
 });

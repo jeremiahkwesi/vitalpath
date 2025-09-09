@@ -1,4 +1,3 @@
-// src/components/QuickEditMealModal.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -29,6 +28,14 @@ export type QuickMeal = {
   carbs: number;
   fat: number;
   type: MealType;
+  micros?: {
+    fiber?: number;
+    sodium?: number;
+    potassium?: number;
+    vitaminC?: number;
+    calcium?: number;
+    iron?: number;
+  };
 };
 
 export default function QuickEditMealModal({
@@ -64,6 +71,7 @@ export default function QuickEditMealModal({
     carbs: Math.round(initial.carbs || 0),
     fat: Math.round(initial.fat || 0),
     type: "lunch",
+    micros: {},
   });
 
   useEffect(() => {
@@ -85,6 +93,11 @@ export default function QuickEditMealModal({
 
   const update = (k: keyof QuickMeal, v: any) =>
     setForm((s) => ({ ...s, [k]: v }));
+
+  const updateMic = (k: keyof NonNullable<QuickMeal["micros"]>, v: string) => {
+    const num = Number(String(v).replace(/[^\d.]/g, ""));
+    setForm((s) => ({ ...s, micros: { ...(s.micros || {}), [k]: Number.isFinite(num) ? num : undefined } }));
+  };
 
   const updateComponent = (idx: number, key: "name" | "grams", v: any) => {
     setForm((s) => {
@@ -330,6 +343,65 @@ export default function QuickEditMealModal({
                 ]}
                 onChange={(v) => update("type", v as MealType)}
               />
+
+              {/* Micros (optional) */}
+              <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 6 }]}>
+                Micros (optional)
+              </Text>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Fiber (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.micros?.fiber != null ? String(form.micros.fiber) : ""}
+                  onChangeText={(t) => updateMic("fiber", t)}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Sodium (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.micros?.sodium != null ? String(form.micros.sodium) : ""}
+                  onChangeText={(t) => updateMic("sodium", t)}
+                />
+              </View>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Potassium (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.micros?.potassium != null ? String(form.micros.potassium) : ""}
+                  onChangeText={(t) => updateMic("potassium", t)}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Vitamin C (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.micros?.vitaminC != null ? String(form.micros.vitaminC) : ""}
+                  onChangeText={(t) => updateMic("vitaminC", t)}
+                />
+              </View>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Calcium (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.micros?.calcium != null ? String(form.micros.calcium) : ""}
+                  onChangeText={(t) => updateMic("calcium", t)}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Iron (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.micros?.iron != null ? String(form.micros.iron) : ""}
+                  onChangeText={(t) => updateMic("iron", t)}
+                />
+              </View>
 
               <View style={styles.componentsHeader}>
                 <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>

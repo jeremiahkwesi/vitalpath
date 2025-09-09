@@ -1,67 +1,106 @@
-// src/ui/components/Button.tsx
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
+import {
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../ThemeProvider";
+import { fonts } from "../../constants/fonts";
+
+type Variant = "primary" | "secondary" | "outline" | "ghost";
+type Size = "sm" | "md" | "lg";
 
 type Props = {
-  children: React.ReactNode;
+  title: string;
   onPress?: () => void;
-  variant?: "primary" | "outline" | "ghost";
-  size?: "sm" | "md" | "lg";
-  disabled?: boolean;
+  variant?: Variant;
+  size?: Size;
   loading?: boolean;
+  disabled?: boolean;
+  leftIcon?: keyof typeof Ionicons.glyphMap;
+  rightIcon?: keyof typeof Ionicons.glyphMap;
   style?: ViewStyle;
+  textStyle?: TextStyle;
 };
 
 export default function Button({
-  children,
+  title,
   onPress,
   variant = "primary",
   size = "md",
-  disabled,
   loading,
+  disabled,
+  leftIcon,
+  rightIcon,
   style,
+  textStyle,
 }: Props) {
   const { theme } = useTheme();
-  const bg =
-    variant === "primary"
-      ? theme.colors.primary
-      : variant === "outline"
-      ? "transparent"
-      : "transparent";
-  const border =
-    variant === "outline" ? theme.colors.border : "transparent";
-  const color =
-    variant === "primary" ? "#fff" : theme.colors.text;
+  const colors = theme.colors;
 
-  const pad = size === "sm" ? 10 : size === "lg" ? 16 : 12;
+  const base: ViewStyle = {
+    borderRadius: theme.radii.md,
+    paddingVertical: size === "lg" ? 14 : size === "sm" ? 8 : 12,
+    paddingHorizontal: size === "lg" ? 18 : size === "sm" ? 12 : 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  };
+
+  let bg = colors.primary;
+  let border = colors.primary;
+  let fg = "#fff";
+
+  if (variant === "secondary") {
+    bg = colors.surface2;
+    border = colors.border;
+    fg = colors.text;
+  } else if (variant === "outline") {
+    bg = "transparent";
+    border = colors.border;
+    fg = colors.text;
+  } else if (variant === "ghost") {
+    bg = "transparent";
+    border = "transparent";
+    fg = colors.text;
+  }
+
+  const opacity = disabled || loading ? 0.6 : 1;
 
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={onPress}
+      activeOpacity={0.85}
       disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.base,
-        { backgroundColor: bg, borderColor: border, paddingVertical: pad, opacity: pressed ? theme.state.pressOpacity : 1 },
-        variant === "outline" && { borderWidth: 1 },
+      style={[
+        base,
+        { backgroundColor: bg, borderColor: border, borderWidth: 1, opacity },
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={color} />
-      ) : (
-        <Text style={[styles.text, { color }]}>{children}</Text>
+      {!!leftIcon && <Ionicons name={leftIcon} size={18} color={fg} />}
+      <Text
+        style={[styles.text, { color: fg, fontFamily: fonts.semiBold }, textStyle]}
+        numberOfLines={1}
+      >
+        {title}
+      </Text>
+      {!!rightIcon && <Ionicons name={rightIcon} size={18} color={fg} />}
+      {loading && (
+        <View style={{ marginLeft: 8 }}>
+          <ActivityIndicator color={fg} />
+        </View>
       )}
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
-  text: { fontSize: 16, fontWeight: "600" },
+  text: { fontSize: 14 },
 });

@@ -1,4 +1,3 @@
-// app/RecipeImportScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -8,13 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  Platform,
 } from "react-native";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
 import { importRecipeFromUrl } from "../src/utils/recipeImport";
 import { addRecipe } from "../src/services/recipes";
+import { Card, SectionHeader } from "../src/ui/components/UKit";
 
 export default function RecipeImportScreen() {
   const { theme } = useTheme();
@@ -63,18 +62,16 @@ export default function RecipeImportScreen() {
       const servings = Array.isArray(servingsRaw)
         ? Number(servingsRaw[0]) || 1
         : Number(String(servingsRaw).match(/(\d+)/)?.[1] || 1);
-      const ingredients: string[] = (node.recipeIngredient ||
-        node.ingredients ||
-        []
-      ).map((s: any) => String(s).trim());
+      const ingredients: string[] = (node.recipeIngredient || node.ingredients || []).map(
+        (s: any) => String(s).trim()
+      );
       const instr = node.recipeInstructions || [];
       const steps = (Array.isArray(instr) ? instr : [instr])
-        .map((x: any) => (typeof x === "string" ? x : x?.text || "")) // handle HowToStep
+        .map((x: any) => (typeof x === "string" ? x : x?.text || "")) // HowToStep
         .map((s: string) => s.trim())
         .filter(Boolean);
       const nutrition = node.nutrition || {};
-      const toNum = (v: any) =>
-        Number(String(v).match(/(\d+(\.\d+)?)/)?.[1] || 0);
+      const toNum = (v: any) => Number(String(v).match(/(\d+(\.\d+)?)/)?.[1] || 0);
       const totals = {
         calories: toNum(nutrition.calories),
         protein: toNum(nutrition.proteinContent),
@@ -132,102 +129,85 @@ export default function RecipeImportScreen() {
       contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.header, { color: theme.colors.text }]}>
-        Import Recipe
-      </Text>
-      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Paste a recipe URL (JSON‑LD) from popular cooking sites or paste JSON‑LD
-        content directly.
-      </Text>
+      <SectionHeader
+        title="Import recipe"
+        subtitle="Paste a JSON‑LD URL or the JSON directly"
+      />
 
-      <Text style={[styles.label, { color: theme.colors.text }]}>URL</Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      <Card>
+        <SectionHeader title="From URL" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="https://example.com/recipe"
+            placeholderTextColor={theme.colors.textMuted}
+            value={url}
+            onChangeText={setUrl}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <TouchableOpacity
+            onPress={runFromUrl}
+            style={[
+              styles.btn,
+              {
+                backgroundColor: theme.colors.primary,
+                borderColor: theme.colors.primary,
+                opacity: importing ? 0.7 : 1,
+              },
+            ]}
+            disabled={importing}
+          >
+            <Text style={styles.btnTextLight}>
+              {importing ? "Importing…" : "Import"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader title="Or paste JSON‑LD" />
         <TextInput
           style={[
             styles.input,
             {
-              flex: 1,
+              height: 140,
+              textAlignVertical: "top",
               backgroundColor: theme.colors.surface2,
               borderColor: theme.colors.border,
               color: theme.colors.text,
             },
           ]}
-          placeholder="https://example.com/recipe"
+          multiline
+          placeholder='{"@context":"https://schema.org","@type":"Recipe", ...}'
           placeholderTextColor={theme.colors.textMuted}
-          value={url}
-          onChangeText={setUrl}
-          autoCapitalize="none"
-          autoCorrect={false}
+          value={paste}
+          onChangeText={setPaste}
         />
         <TouchableOpacity
-          onPress={runFromUrl}
+          onPress={runFromPaste}
           style={[
             styles.btn,
-            {
-              backgroundColor: theme.colors.primary,
-              borderColor: theme.colors.primary,
-              opacity: importing ? 0.7 : 1,
-            },
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
           ]}
           disabled={importing}
         >
-          <Text style={styles.btnTextLight}>
-            {importing ? "Importing…" : "Import"}
+          <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+            Parse pasted JSON
           </Text>
         </TouchableOpacity>
-      </View>
-
-      <Text style={[styles.label, { color: theme.colors.text, marginTop: 8 }]}>
-        Or paste JSON‑LD
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            height: 140,
-            textAlignVertical: "top",
-            backgroundColor: theme.colors.surface2,
-            borderColor: theme.colors.border,
-            color: theme.colors.text,
-          },
-        ]}
-        multiline
-        placeholder='{"@context":"https://schema.org","@type":"Recipe", ...}'
-        placeholderTextColor={theme.colors.textMuted}
-        value={paste}
-        onChangeText={setPaste}
-      />
-      <TouchableOpacity
-        onPress={runFromPaste}
-        style={[
-          styles.btn,
-          {
-            backgroundColor: theme.colors.surface2,
-            borderColor: theme.colors.border,
-          },
-        ]}
-        disabled={importing}
-      >
-        <Text
-          style={{
-            color: theme.colors.text,
-            fontFamily: fonts.semiBold,
-          }}
-        >
-          Parse pasted JSON
-        </Text>
-      </TouchableOpacity>
+      </Card>
 
       {!!res && (
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
+        <Card>
           <Text style={[styles.title, { color: theme.colors.text }]}>{res.name}</Text>
           <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>
             Servings: {res.servings}
@@ -284,29 +264,15 @@ export default function RecipeImportScreen() {
           >
             <Text style={styles.btnTextLight}>Save as recipe</Text>
           </TouchableOpacity>
-        </View>
+        </Card>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
-  label: { fontFamily: fonts.semiBold, marginTop: 8, marginBottom: 6 },
-  input: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    fontFamily: fonts.regular,
-  },
-  btn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    alignItems: "center",
-  },
-  btnTextLight: { color: "#fff", fontFamily: fonts.semiBold },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
+  input: { borderRadius: 10, borderWidth: 1, padding: 10, fontFamily: fonts.regular },
+  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12, alignItems: "center" },
+  btnTextLight: { color: "#fff", fontFamily: fonts.semiBold },
 });

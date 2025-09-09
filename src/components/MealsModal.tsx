@@ -1,4 +1,3 @@
-// src/components/MealsModal.tsx
 import React, { useMemo, useState } from "react";
 import {
   Modal,
@@ -32,6 +31,12 @@ export default function MealsModal({ visible, onClose }: Props) {
     protein: "",
     carbs: "",
     fat: "",
+    fiber: "",
+    sodium: "",
+    potassium: "",
+    vitaminC: "",
+    calcium: "",
+    iron: "",
   });
 
   const totals = useMemo(() => {
@@ -51,13 +56,21 @@ export default function MealsModal({ visible, onClose }: Props) {
       protein: "",
       carbs: "",
       fat: "",
+      fiber: "",
+      sodium: "",
+      potassium: "",
+      vitaminC: "",
+      calcium: "",
+      iron: "",
     });
+
+  const toNum = (s: string) => {
+    const n = Number(String(s).replace(/[^\d.]/g, ""));
+    return Number.isFinite(n) ? n : undefined;
+  };
 
   const onAdd = async () => {
     const calories = parseInt(form.calories || "0", 10);
-    const protein = parseFloat(form.protein || "0");
-    const carbs = parseFloat(form.carbs || "0");
-    const fat = parseFloat(form.fat || "0");
 
     if (!form.name || !Number.isFinite(calories) || calories <= 0) {
       toast.error("Enter a name and valid calories");
@@ -68,8 +81,19 @@ export default function MealsModal({ visible, onClose }: Props) {
       name: form.name,
       type: form.type,
       calories,
-      macros: { protein, carbs, fat },
-      micros: {},
+      macros: {
+        protein: Number(parseFloat(form.protein || "0").toFixed(0)),
+        carbs: Number(parseFloat(form.carbs || "0").toFixed(0)),
+        fat: Number(parseFloat(form.fat || "0").toFixed(0)),
+      },
+      micros: {
+        ...(toNum(form.fiber) != null ? { fiber: toNum(form.fiber)! } : {}),
+        ...(toNum(form.sodium) != null ? { sodium: toNum(form.sodium)! } : {}),
+        ...(toNum(form.potassium) != null ? { potassium: toNum(form.potassium)! } : {}),
+        ...(toNum(form.vitaminC) != null ? { vitaminC: toNum(form.vitaminC)! } : {}),
+        ...(toNum(form.calcium) != null ? { calcium: toNum(form.calcium)! } : {}),
+        ...(toNum(form.iron) != null ? { iron: toNum(form.iron)! } : {}),
+      },
     });
 
     resetForm();
@@ -136,6 +160,15 @@ export default function MealsModal({ visible, onClose }: Props) {
                       {m.type} • {m.calories} kcal • P {m.macros.protein}g, C{" "}
                       {m.macros.carbs}g, F {m.macros.fat}g
                     </Text>
+                    {!!m.micros && Object.keys(m.micros).length > 0 && (
+                      <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+                        Micros:{" "}
+                        {Object.entries(m.micros)
+                          .slice(0, 6)
+                          .map(([k, v]) => `${k} ${v}`)
+                          .join(" · ")}
+                      </Text>
+                    )}
                   </View>
                   <TouchableOpacity onPress={() => onDelete(m.id)}>
                     <Text style={{ color: "#FF6B6B", fontFamily: fonts.semiBold }}>
@@ -215,6 +248,62 @@ export default function MealsModal({ visible, onClose }: Props) {
                   keyboardType="decimal-pad"
                   value={form.fat}
                   onChangeText={(t) => setForm((s) => ({ ...s, fat: t }))}
+                />
+              </View>
+
+              <Text style={[styles.section, { color: theme.colors.text }]}>Micros (optional)</Text>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Fiber (g)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.fiber}
+                  onChangeText={(t) => setForm((s) => ({ ...s, fiber: t }))}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Sodium (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.sodium}
+                  onChangeText={(t) => setForm((s) => ({ ...s, sodium: t }))}
+                />
+              </View>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Potassium (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.potassium}
+                  onChangeText={(t) => setForm((s) => ({ ...s, potassium: t }))}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Vitamin C (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.vitaminC}
+                  onChangeText={(t) => setForm((s) => ({ ...s, vitaminC: t }))}
+                />
+              </View>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Calcium (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.calcium}
+                  onChangeText={(t) => setForm((s) => ({ ...s, calcium: t }))}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1, backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+                  placeholder="Iron (mg)"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={form.iron}
+                  onChangeText={(t) => setForm((s) => ({ ...s, iron: t }))}
                 />
               </View>
 

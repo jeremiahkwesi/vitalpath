@@ -6,6 +6,7 @@ import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { fonts } from "../constants/fonts";
 import { useTheme } from "../ui/ThemeProvider";
+import { Card, SectionHeader } from "../ui/components/UKit";
 
 type DaySummary = {
   date: string;
@@ -97,7 +98,10 @@ export default function WeeklyTrends({ days = 7 }: { days?: number }) {
     <View
       style={[
         styles.barTrack,
-        { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+        {
+          backgroundColor: theme.colors.surface2,
+          borderColor: theme.colors.border,
+        },
       ]}
     >
       <View
@@ -113,59 +117,53 @@ export default function WeeklyTrends({ days = 7 }: { days?: number }) {
   );
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
-        },
-      ]}
-    >
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        Last {days} Days Trends
-      </Text>
+    <Card>
+      <SectionHeader title={`Last ${days} days`} />
       {data.map((r) => (
         <View key={r.date} style={styles.row}>
           <Text
             style={[styles.dateLabel, { color: theme.colors.textMuted }]}
           >
-            {new Date(r.date + "T00:00:00").toLocaleDateString(undefined, {
-              weekday: "short",
-            })}
+            {new Date(r.date + "T00:00:00").toLocaleDateString(
+              undefined,
+              { weekday: "short" }
+            )}
           </Text>
           <View style={styles.metricCol}>
-            <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+            <Text
+              style={[styles.metricLabel, { color: theme.colors.textMuted }]}
+            >
               Calories
             </Text>
-            <Bar value={r.calories} max={maxCal} color={theme.colors.primary} />
+            <Bar
+              value={r.calories}
+              max={maxCal}
+              color={theme.colors.primary}
+            />
           </View>
           <View style={styles.metricCol}>
-            <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+            <Text
+              style={[styles.metricLabel, { color: theme.colors.textMuted }]}
+            >
               Steps
             </Text>
             <Bar value={r.steps} max={maxSteps} color="#4ECDC4" />
           </View>
           <View style={styles.metricCol}>
-            <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+            <Text
+              style={[styles.metricLabel, { color: theme.colors.textMuted }]}
+            >
               Water
             </Text>
             <Bar value={r.water} max={maxWater} color="#45B7D1" />
           </View>
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-  },
-  title: { fontSize: 18, fontFamily: fonts.semiBold, marginBottom: 12 },
   row: { marginBottom: 10 },
   dateLabel: { fontSize: 12, marginBottom: 6, fontFamily: fonts.regular },
   metricCol: { marginBottom: 6 },

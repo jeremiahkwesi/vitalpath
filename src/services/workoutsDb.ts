@@ -1,4 +1,3 @@
-// src/services/workoutsDb.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   addDoc,
@@ -175,7 +174,7 @@ export async function searchExercises(
   );
 
   try {
-    const limit = Math.max(1, Math.min(120, opts.limit || 80));
+    const limit = Math.max(1, Math.min(200, opts.limit || 120));
     const url =
       `${API}/exerciseinfo/?language=2&limit=${limit}&search=` +
       encodeURIComponent(q);

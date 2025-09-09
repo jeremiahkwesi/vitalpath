@@ -1,17 +1,15 @@
-// app/WeeklyReportScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Share } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getWeeklyReportNarrativeAI } from "../src/services/healthAI";
-import * as Sharing from "expo-sharing";
-import * as Print from "expo-print";
+import { Card, SectionHeader, Pill, StatTile } from "../src/ui/components/UKit";
+import { getHealthAssistantResponse } from "../src/services/healthAI";
 
-type Day = {
+type Row = {
   date: string;
-  calories: number;
+  kcal: number;
   protein: number;
   carbs: number;
   fat: number;
@@ -34,9 +32,9 @@ function lastNDates(n: number): string[] {
 export default function WeeklyReportScreen() {
   const { theme } = useTheme();
   const { user, userProfile } = useAuth();
-  const [days, setDays] = useState<Day[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [narrative, setNarrative] = useState("");
+  const [period, setPeriod] = useState<7 | 14>(7);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [report, setReport] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -51,11 +49,12 @@ export default function WeeklyReportScreen() {
           const data = JSON.parse(v);
           map[data.date] = data;
         }
-        const list = lastNDates(7).map((d) => {
+        const days = lastNDates(period);
+        const list: Row[] = days.map((d) => {
           const x = map[d] || {};
           return {
             date: d,
-            calories: Number(x.totalCalories || 0),
+            kcal: Number(x.totalCalories || 0),
             protein: Number(x.macros?.protein || 0),
             carbs: Number(x.macros?.carbs || 0),
             fat: Number(x.macros?.fat || 0),
@@ -64,141 +63,137 @@ export default function WeeklyReportScreen() {
             meals: Array.isArray(x.meals) ? x.meals.length : 0,
           };
         });
-        setDays(list);
+        setRows(list);
       } catch {}
     })();
-  }, [user?.uid]);
+  }, [user?.uid, period]);
 
-  const totals = useMemo(() => {
-    const sum = (k: keyof Day) => days.reduce((a, d) => a + (d[k] as any), 0);
+  const avg = (arr: number[]) =>
+    arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+  const overview = useMemo(() => {
     return {
-      calories: sum("calories"),
-      protein: sum("protein"),
-      carbs: sum("carbs"),
-      fat: sum("fat"),
-      steps: sum("steps"),
-      workouts: sum("workouts"),
-      meals: sum("meals"),
+      avgKcal: avg(rows.map((r) => r.kcal)),
+      avgProt: avg(rows.map((r) => r.protein)),
+      avgCarb: avg(rows.map((r) => r.carbs)),
+      avgFat: avg(rows.map((r) => r.fat)),
+      avgSteps: avg(rows.map((r) => r.steps)),
+      workouts: rows.reduce((a, b) => a + b.workouts, 0),
+      meals: rows.reduce((a, b) => a + b.meals, 0),
+      days: rows.length,
     };
-  }, [days]);
+  }, [rows]);
 
-  const averages = useMemo(() => {
-    const n = Math.max(1, days.length);
-    const r: any = {};
-    for (const k of ["calories", "protein", "carbs", "fat", "steps"] as const) {
-      r[k] = Math.round((totals as any)[k] / n);
-    }
-    return r as {
-      calories: number;
-      protein: number;
-      carbs: number;
-      fat: number;
-      steps: number;
-    };
-  }, [days, totals]);
+  const buildPrompt = () => {
+    const {
+      avgKcal,
+      avgProt,
+      avgCarb,
+      avgFat,
+      avgSteps,
+      workouts,
+      meals,
+      days,
+    } = overview;
+    const goal = userProfile?.fitnessGoal || userProfile?.goal || "general health";
+    const comp = userProfile?.bodyCompositionGoal || "maintain";
+    return `Create a concise ${days}-day weekly fitness report for a user whose goals are: fitness=${goal}, body composition=${comp}.
+Data summary:
+- Avg calories: ${avgKcal} kcal/day
+- Avg macros: P ${avgProt} g, C ${avgCarb} g, F ${avgFat} g
+- Avg steps: ${avgSteps}/day
+- Workouts completed: ${workouts}
+- Meals logged: ${meals}
+
+Write:
+1) Highlights (bullets)
+2) Nutrition notes (bullets)
+3) Training notes (bullets)
+4) Simple next-week plan (bullets)
+
+Keep it brief and actionable. Consider any typical constraints for ${userProfile?.healthConditions?.join(", ") || "no special conditions"}.`;
+  };
 
   const generate = async () => {
-    setLoading(true);
+    const prompt = buildPrompt();
     try {
-      const text = await getWeeklyReportNarrativeAI({ days, totals, averages }, userProfile || undefined);
-      setNarrative(text);
-    } catch (e: any) {
-      Alert.alert("AI", e?.message || "Failed to generate.");
-    } finally {
-      setLoading(false);
+      const txt = await getHealthAssistantResponse(prompt, { user: "weekly" }, []);
+      setReport(txt);
+    } catch {
+      setReport(
+        "Could not generate AI report. Your weekly snapshot is still available above."
+      );
     }
   };
 
-  const toHTML = () => {
-    const rows = days
-      .map(
-        (d) =>
-          `<tr><td>${d.date}</td><td>${d.calories}</td><td>P${d.protein}</td><td>C${d.carbs}</td><td>F${d.fat}</td><td>${d.steps}</td><td>${d.workouts}</td><td>${d.meals}</td></tr>`
-      )
-      .join("");
-    const css = `
-      body{font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen; padding: 16px;}
-      h1{font-size: 20px;}
-      table{width: 100%; border-collapse: collapse; margin-top: 10px;}
-      th, td{border: 1px solid #ddd; padding: 6px; font-size: 12px;}
-      th{background:#f4f4f4;}
-      .section{margin-top:16px;}
-    `;
-    return `
-      <html><head><style>${css}</style></head><body>
-        <h1>Weekly Report</h1>
-        <div class="section">
-          <strong>Totals:</strong>
-          <div>Calories: ${totals.calories} | Protein: ${totals.protein} | Carbs: ${totals.carbs} | Fat: ${totals.fat}</div>
-          <div>Steps: ${totals.steps} | Workouts: ${totals.workouts} | Meals: ${totals.meals}</div>
-          <strong>Averages:</strong>
-          <div>Calories: ${averages.calories} | Protein: ${averages.protein} | Carbs: ${averages.carbs} | Fat: ${averages.fat} | Steps: ${averages.steps}</div>
-        </div>
-        <div class="section">
-          <strong>AI Summary</strong>
-          <div>${(narrative || "").replace(/\n/g, "<br/>")}</div>
-        </div>
-        <div class="section">
-          <table>
-            <thead><tr><th>Date</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Steps</th><th>WOs</th><th>Meals</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </body></html>
-    `;
-  };
-
-  const exportPDF = async () => {
+  const shareReport = async () => {
+    if (!report.trim()) return;
     try {
-      const html = toHTML();
-      const { uri } = await Print.printToFileAsync({ html });
-      if (Platform.OS !== "web" && (await Sharing.isAvailableAsync())) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert("Export", "Report generated. On web, check the dev console for URI.");
-        console.log("PDF URI:", uri);
-      }
-    } catch (e: any) {
-      Alert.alert("Export", e?.message || "Failed to export.");
-    }
+      await Share.share({ message: report });
+    } catch {}
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
-      <Text style={[styles.header, { color: theme.colors.text }]}>AI Weekly Report</Text>
-      <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-        Generate a weekly summary with AI narrative and export as PDF.
-      </Text>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+    >
+      <SectionHeader
+        title="Weekly Report"
+        subtitle="Overview and AI summary"
+        right={
+          <View style={{ flexDirection: "row" }}>
+            <Pill
+              label="7d"
+              selected={period === 7}
+              onPress={() => setPeriod(7)}
+            />
+            <Pill
+              label="14d"
+              selected={period === 14}
+              onPress={() => setPeriod(14)}
+            />
+          </View>
+        }
+      />
 
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Summary</Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Totals — kcal {totals.calories} • P{totals.protein} C{totals.carbs} F{totals.fat} • Steps {totals.steps} • WOs {totals.workouts} • Meals {totals.meals}
-        </Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Averages — kcal {averages.calories} • P{averages.protein} C{averages.carbs} F{averages.fat} • Steps {averages.steps}
-        </Text>
-        <TouchableOpacity onPress={generate} style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, marginTop: 8 }]} disabled={loading}>
-          <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>{loading ? "Generating…" : "Generate AI summary"}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {!!narrative && (
-        <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.sub, { color: theme.colors.text }]}>AI Narrative</Text>
-          <Text style={{ color: theme.colors.text }}>{narrative}</Text>
-          <TouchableOpacity onPress={exportPDF} style={[styles.btn, { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary, marginTop: 8 }]}>
-            <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Export PDF</Text>
-          </TouchableOpacity>
+      <Card>
+        <SectionHeader title="Snapshot" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <StatTile value={`${overview.avgKcal}`} label="avg kcal" />
+          <StatTile value={`${overview.avgSteps}`} label="avg steps" />
         </View>
-      )}
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+          <StatTile value={`${overview.workouts}`} label="workouts" />
+          <StatTile value={`${overview.meals}`} label="meals logged" />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader title="Macros (daily avg)" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <StatTile value={`${overview.avgProt} g`} label="Protein" />
+          <StatTile value={`${overview.avgCarb} g`} label="Carbs" />
+          <StatTile value={`${overview.avgFat} g`} label="Fat" />
+        </View>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="AI weekly report"
+          right={
+            <View style={{ flexDirection: "row" }}>
+              <Pill label="Generate" icon="flash-outline" onPress={generate} />
+              <Pill label="Share" icon="share-outline" onPress={shareReport} />
+            </View>
+          }
+        />
+        <Text style={{ color: theme.colors.text, lineHeight: 20 }}>
+          {report
+            ? report
+            : "Tap Generate to create a concise report. We’ll use your recent stats and goals."}
+        </Text>
+      </Card>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 6 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
-  sub: { fontFamily: fonts.semiBold, marginBottom: 6 },
-  btn: { borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
-});

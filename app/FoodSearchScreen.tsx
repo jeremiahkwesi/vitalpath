@@ -1,4 +1,3 @@
-// app/FoodSearchScreen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -16,6 +15,8 @@ import { useAuth } from "../src/context/AuthContext";
 import { searchFoods, FoodItem } from "../src/services/foodDb";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { getFavorites } from "../src/utils/favorites";
+import { Card, SectionHeader, Pill } from "../src/ui/components/UKit";
 
 export default function FoodSearchScreen() {
   const { theme } = useTheme();
@@ -26,6 +27,17 @@ export default function FoodSearchScreen() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<FoodItem[]>([]);
+  const [favorites, setFavorites] = useState<
+    {
+      id: string;
+      name: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      type: any;
+    }[]
+  >([]);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +64,14 @@ export default function FoodSearchScreen() {
       clearTimeout(t);
     };
   }, [q, user?.uid]);
+
+  useEffect(() => {
+    (async () => {
+      if (!user?.uid) return;
+      const favs = await getFavorites(user.uid);
+      setFavorites(favs || []);
+    })();
+  }, [user?.uid]);
 
   const goAdd = (it: FoodItem) => {
     const origin = route.params?.origin;
@@ -89,69 +109,129 @@ export default function FoodSearchScreen() {
   );
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: theme.colors.appBg, padding: 16 }}
-    >
-      <Text style={[styles.header, { color: theme.colors.text }]}>
-        Search Food
-      </Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              flex: 1,
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-              color: theme.colors.text,
-            },
-          ]}
-          placeholder="Search (e.g., chicken, rice, yogurt)"
-          placeholderTextColor={theme.colors.textMuted}
-          value={q}
-          onChangeText={setQ}
-          autoFocus={Platform.OS !== "web"}
-          returnKeyType="search"
-        />
-        <TouchableOpacity
-          onPress={() => nav.navigate("Scan" as never)}
-          style={[
-            styles.iconBtn,
-            {
-              backgroundColor: theme.colors.surface2,
-              borderColor: theme.colors.border,
-            },
-          ]}
-          accessibilityLabel="Open scanner"
-          accessibilityRole="button"
-        >
-          <Ionicons name="scan-outline" size={18} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1, backgroundColor: theme.colors.appBg, padding: 16 }}>
+      <SectionHeader
+        title="Food search"
+        right={
+          <Pill
+            label="Scan"
+            icon="scan-outline"
+            onPress={() => nav.navigate("Plan", { screen: "Scan" } as any)}
+          />
+        }
+      />
 
-      {loading ? (
-        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-          Searching…
-        </Text>
-      ) : results.length === 0 ? (
-        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
-          Try typing “banana”, “oats”, “chicken breast”…
-        </Text>
-      ) : (
-        <FlatList
-          data={results}
-          renderItem={renderItem}
-          keyExtractor={(i) => i.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 12 }}
-        />
+      <Card>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Search</Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="e.g., chicken, rice, yogurt"
+            placeholderTextColor={theme.colors.textMuted}
+            value={q}
+            onChangeText={setQ}
+            autoFocus={Platform.OS !== "web"}
+            returnKeyType="search"
+          />
+          {!!q && (
+            <TouchableOpacity
+              onPress={() => setQ("")}
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              accessibilityLabel="Clear search"
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name="close-circle-outline"
+                size={18}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      </Card>
+
+      {favorites.length > 0 && (
+        <Card>
+          <SectionHeader title="Favorites" />
+          {favorites.slice(0, 6).map((f) => (
+            <TouchableOpacity
+              key={f.id}
+              onPress={() =>
+                goAdd({
+                  id: f.id,
+                  name: f.name,
+                  serving: "1 serving",
+                  calories: f.calories,
+                  protein: f.protein,
+                  carbs: f.carbs,
+                  fat: f.fat,
+                  source: "local",
+                } as any)
+              }
+              style={[styles.row, { borderBottomColor: theme.colors.border }]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.name, { color: theme.colors.text }]}
+                  numberOfLines={1}
+                >
+                  {f.name}
+                </Text>
+                <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+                  {Math.round(f.calories)} kcal • P{f.protein} C{f.carbs} F
+                  {f.fat}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={theme.colors.textMuted}
+              />
+            </TouchableOpacity>
+          ))}
+        </Card>
       )}
+
+      <Card>
+        <SectionHeader title="Results" />
+        {loading ? (
+          <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+            Searching…
+          </Text>
+        ) : results.length === 0 ? (
+          <Text style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+            Try typing “banana”, “oats”, “chicken breast”…
+          </Text>
+        ) : (
+          <FlatList
+            data={results}
+            renderItem={renderItem}
+            keyExtractor={(i) => i.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingTop: 8, paddingBottom: 12 }}
+          />
+        )}
+      </Card>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 8 },
+  label: { fontFamily: fonts.semiBold, marginBottom: 6 },
   input: {
     borderRadius: 10,
     borderWidth: 1,

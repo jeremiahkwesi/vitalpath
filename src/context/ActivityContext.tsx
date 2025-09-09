@@ -1,4 +1,3 @@
-// src/context/ActivityContext.tsx
 import React, {
   createContext,
   useContext,
@@ -121,15 +120,20 @@ export const useActivity = () => {
 const localKey = (uid: string, date: string) => `activity:${uid}:${date}`;
 const liftsKey = (uid: string) => `lifts:last:${uid}`;
 
+function todayISO(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
 export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(
-    null
-  );
+  const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const { user, userProfile } = useAuth();
-  const todayString = new Date().toISOString().split("T")[0];
+
+  // Track the current date (YYYY-MM-DD) with rollover handling
+  const [dateISO, setDateISO] = useState<string>(todayISO());
+  const dateRef = useRef<string>(dateISO);
 
   const didInitRef = useRef(false);
   const lastUidRef = useRef<string | null>(null);
@@ -141,6 +145,10 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     activityRef.current = todayActivity;
   }, [todayActivity]);
+
+  useEffect(() => {
+    dateRef.current = dateISO;
+  }, [dateISO]);
 
   useEffect(() => {
     const uid = user?.uid || null;
@@ -162,7 +170,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
 
     if (!didInitRef.current) setLoading(true);
-    fetchTodayActivity(uid).finally(() => {
+    fetchDayActivity(uid, dateRef.current).finally(() => {
       didInitRef.current = true;
       setLoading(false);
       startPedo();
@@ -170,6 +178,24 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return () => stopPedo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
+  // Rollover: check every minute for date change; create a fresh doc and restart step watcher
+  useEffect(() => {
+    if (!user?.uid) return;
+    const int = setInterval(() => {
+      const nowISO = todayISO();
+      if (nowISO !== dateRef.current) {
+        setDateISO(nowISO);
+        // fetch new activity and restart pedometer for the new day
+        (async () => {
+          await fetchDayActivity(user.uid!, nowISO);
+          stopPedo();
+          startPedo();
+        })();
+      }
+    }, 60_000);
+    return () => clearInterval(int);
   }, [user?.uid]);
 
   const startPedo = async () => {
@@ -180,7 +206,6 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!available) return;
       pedoSubRef.current = Pedometer.watchStepCount((ev) => {
         const stepsLive = ev.steps || 0;
-        // Use functional update to avoid stale closures
         applyUpdate((prev) => {
           const nextSteps = Math.max(prev.steps || 0, stepsLive);
           if (nextSteps === prev.steps) return prev;
@@ -241,10 +266,10 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {}
   };
 
-  const fetchTodayActivity = async (uid: string) => {
+  const fetchDayActivity = async (uid: string, dISO: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-    const id = `${uid}_${todayString}`;
+    const id = `${uid}_${dISO}`;
     const ref = doc(db, "activities", id);
 
     try {
@@ -282,7 +307,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch {}
 
-    const fromLocal = await readLocal(uid, todayString);
+    const fromLocal = await readLocal(uid, dISO);
     if (fromLocal) {
       setTodayActivity(fromLocal);
       activityRef.current = fromLocal;
@@ -293,7 +318,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     const newActivity: DailyActivity = {
       id,
       userId: uid,
-      date: todayString,
+      date: dISO,
       steps: 0,
       waterIntake: 0,
       sleepHours: 0,
@@ -332,7 +357,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({
     return { totalCalories, macros, micros };
   };
 
-  // Atomic update helper: reads latest state, applies update, persists
+  // Atomic update helper
   const applyUpdate = async (
     updater: (prev: DailyActivity) => DailyActivity
   ) => {

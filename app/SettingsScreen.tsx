@@ -1,4 +1,3 @@
-// app/SettingsScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -42,12 +41,24 @@ import {
   setGoals,
   DailyGoals,
 } from "../src/utils/userSettings";
-import { exportAll, importFromJson, clearLocalCache } from "../src/utils/export";
+import {
+  exportAll,
+  importFromJson,
+  clearLocalCache,
+} from "../src/utils/export";
 import { useNavigation } from "@react-navigation/native";
+import { Card, SectionHeader } from "../src/ui/components/UKit";
 
 export default function SettingsScreen() {
   const { theme, setScheme, scheme } = useTheme();
-  const { user, logout, userProfile, updateUserProfile } = useAuth();
+  const {
+    user,
+    logout,
+    userProfile,
+    updateUserProfile,
+    sendVerificationEmail,
+    resetPassword,
+  } = useAuth();
   const nav = useNavigation<any>();
 
   const [pwd, setPwd] = useState("");
@@ -55,7 +66,10 @@ export default function SettingsScreen() {
   const [scheduleBusy, setScheduleBusy] = useState(false);
 
   // Units
-  const [units, setUnitsState] = useState<Units>({ weight: "kg", distance: "km" });
+  const [units, setUnitsState] = useState<Units>({
+    weight: "kg",
+    distance: "km",
+  });
 
   // Goals & Macros quick edit (mirror)
   const [calories, setCalories] = useState<string>("");
@@ -64,7 +78,10 @@ export default function SettingsScreen() {
   const [fat, setFat] = useState<string>("");
 
   // Daily Goals
-  const [dGoals, setDGoals] = useState<DailyGoals>({ stepsGoal: 8000, waterGoalMl: 2000 });
+  const [dGoals, setDGoals] = useState<DailyGoals>({
+    stepsGoal: 8000,
+    waterGoalMl: 2000,
+  });
 
   // Integrations / privacy
   const [integrations, setIntegrationsState] = useState<Integrations>({
@@ -136,7 +153,9 @@ export default function SettingsScreen() {
           setMealsEnabled(!!saved.mealsEnabled);
           setWaterEnabled(!!saved.waterEnabled);
         }
-      } catch {}
+      } catch {
+        // no-op
+      }
     })();
   }, [user?.uid, userProfile]);
 
@@ -197,22 +216,10 @@ export default function SettingsScreen() {
     }
   };
 
-  const saveDailyGoals = async () => {
-    try {
-      await setGoals(dGoals, user?.uid);
-      Alert.alert("Saved", "Daily goals updated.");
-    } catch {
-      Alert.alert("Error", "Failed to save daily goals.");
-    }
-  };
-
   const toggleIntegration = async (key: keyof Integrations, val: boolean) => {
     const next = { ...integrations, [key]: val };
     setIntegrationsState(next);
     await setIntegrations(next, user?.uid);
-    if (key === "fitnessSync") {
-      Alert.alert("Fitness sync", "If steps do not update immediately, restart the app.");
-    }
   };
 
   const doDeleteAccount = async () => {
@@ -239,59 +246,61 @@ export default function SettingsScreen() {
     }
   };
 
-  return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.appBg }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.title, { color: theme.colors.text }]}>Settings</Text>
+  const onSendVerification = async () => {
+    try {
+      await sendVerificationEmail();
+      Alert.alert("Email", "Verification email sent.");
+    } catch (e: any) {
+      Alert.alert("Email", e?.message || "Failed to send verification email.");
+    }
+  };
 
-      {/* Shortcuts */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Profile & Goals</Text>
+  const onResetPassword = async () => {
+    if (!user?.email) return Alert.alert("Reset", "No email on account.");
+    try {
+      await resetPassword(user.email);
+      Alert.alert("Reset", "Password reset link sent to your email.");
+    } catch (e: any) {
+      Alert.alert("Reset", e?.message || "Failed to send reset email.");
+    }
+  };
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <SectionHeader title="Settings" subtitle="Account, preferences, and data" />
+
+      <Card>
+        <SectionHeader title="Profile & Goals" />
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <TouchableOpacity onPress={() => nav.navigate("EditProfile")} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+          <TouchableOpacity
+            onPress={() => nav.navigate("EditProfile")}
+            style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+          >
             <Text style={[styles.btnText, { color: theme.colors.text }]}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => nav.navigate("EditGoals")} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+          <TouchableOpacity
+            onPress={() => nav.navigate("EditGoals")}
+            style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+          >
             <Text style={[styles.btnText, { color: theme.colors.text }]}>Edit Goals</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Appearance */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Appearance</Text>
-        <Select
-          label="Theme"
-          value={scheme}
-          items={[
-            { label: "System", value: "system" },
-            { label: "Light", value: "light" },
-            { label: "Dark", value: "dark" },
-          ]}
-          onChange={(v) => setScheme(v as any)}
-        />
-      </View>
-
-      {/* Units */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Units</Text>
-        <Select
-          label="Weight unit"
-          value={units.weight}
-          items={[
-            { label: "Kilograms (kg)", value: "kg" },
-            { label: "Pounds (lb)", value: "lb" },
-          ]}
-          onChange={(v) => onUnitsChange(v as "kg" | "lb")}
-        />
-      </View>
-
-      {/* Goals quick edit */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Goals & Macros (quick edit)</Text>
+        <Text style={[styles.sectionSmall, { color: theme.colors.text, marginTop: 10 }]}>
+          Goals & Macros (quick edit)
+        </Text>
 
         <Text style={[styles.label, { color: theme.colors.text }]}>Daily calories (kcal)</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+          style={[
+            styles.input,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+          ]}
           keyboardType="numeric"
           value={calories}
           onChangeText={setCalories}
@@ -301,7 +310,10 @@ export default function SettingsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: theme.colors.text }]}>Protein (g)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+              ]}
               keyboardType="numeric"
               value={protein}
               onChangeText={setProtein}
@@ -310,7 +322,10 @@ export default function SettingsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: theme.colors.text }]}>Carbs (g)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+              ]}
               keyboardType="numeric"
               value={carbs}
               onChangeText={setCarbs}
@@ -319,7 +334,10 @@ export default function SettingsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: theme.colors.text }]}>Fat (g)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+              ]}
               keyboardType="numeric"
               value={fat}
               onChangeText={setFat}
@@ -330,70 +348,124 @@ export default function SettingsScreen() {
         <TouchableOpacity onPress={saveGoals} style={[styles.apply, { backgroundColor: theme.colors.primary }]}>
           <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Save Goals</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Daily Goals */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Daily Goals</Text>
+      <Card>
+        <SectionHeader title="Appearance" />
+        <Select
+          label="Theme"
+          value={scheme}
+          items={[
+            { label: "System", value: "system" },
+            { label: "Light", value: "light" },
+            { label: "Dark", value: "dark" },
+          ]}
+          onChange={(v) => setScheme(v as any)}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader title="Units" />
+        <Select
+          label="Weight unit"
+          value={units.weight}
+          items={[
+            { label: "Kilograms (kg)", value: "kg" },
+            { label: "Pounds (lb)", value: "lb" },
+          ]}
+          onChange={(v) => onUnitsChange(v as "kg" | "lb")}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader title="Daily Goals" />
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: theme.colors.text }]}>Steps goal</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+              ]}
               keyboardType="numeric"
               value={String(dGoals.stepsGoal)}
-              onChangeText={(t) => setDGoals((s) => ({ ...s, stepsGoal: Math.max(0, parseInt(t || "0", 10)) }))}
+              onChangeText={(t) =>
+                setDGoals((s) => ({ ...s, stepsGoal: Math.max(0, parseInt(t || "0", 10)) }))
+              }
             />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: theme.colors.text }]}>Water goal (ml)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+              ]}
               keyboardType="numeric"
               value={String(dGoals.waterGoalMl)}
-              onChangeText={(t) => setDGoals((s) => ({ ...s, waterGoalMl: Math.max(0, parseInt(t || "0", 10)) }))}
+              onChangeText={(t) =>
+                setDGoals((s) => ({ ...s, waterGoalMl: Math.max(0, parseInt(t || "0", 10)) }))
+              }
             />
           </View>
         </View>
-        <TouchableOpacity onPress={async () => {
-          await setGoals(dGoals, user?.uid);
-          Alert.alert("Saved", "Daily goals updated.");
-        }} style={[styles.apply, { backgroundColor: theme.colors.primary }]}>
+        <TouchableOpacity
+          onPress={async () => {
+            await setGoals(dGoals, user?.uid);
+            Alert.alert("Saved", "Daily goals updated.");
+          }}
+          style={[styles.apply, { backgroundColor: theme.colors.primary }]}
+        >
           <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>Save Daily Goals</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Reminders */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Reminders</Text>
-
+      <Card>
+        <SectionHeader title="Reminders" />
         <View style={styles.switchRow}>
           <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Meal reminders</Text>
-          <Switch value={mealsEnabled} onValueChange={(v) => setMealsEnabled(v)} />
+          <Switch value={mealsEnabled} onValueChange={setMealsEnabled} />
         </View>
         <TouchableOpacity
           disabled={!mealsEnabled}
           onPress={() => setShowMealsModal(true)}
-          style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, opacity: mealsEnabled ? 1 : 0.6 }]}
+          style={[
+            styles.btn,
+            {
+              backgroundColor: theme.colors.surface2,
+              borderColor: theme.colors.border,
+              opacity: mealsEnabled ? 1 : 0.6,
+            },
+          ]}
         >
           <Text style={[styles.btnText, { color: theme.colors.text }]}>Set meal times</Text>
         </TouchableOpacity>
 
         <View style={[styles.switchRow, { marginTop: 10 }]}>
           <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Water reminders</Text>
-          <Switch value={waterEnabled} onValueChange={(v) => setWaterEnabled(v)} />
+          <Switch value={waterEnabled} onValueChange={setWaterEnabled} />
         </View>
         <TouchableOpacity
           disabled={!waterEnabled}
           onPress={() => setShowWaterModal(true)}
-          style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, opacity: waterEnabled ? 1 : 0.6 }]}
+          style={[
+            styles.btn,
+            {
+              backgroundColor: theme.colors.surface2,
+              borderColor: theme.colors.border,
+              opacity: waterEnabled ? 1 : 0.6,
+            },
+          ]}
         >
           <Text style={[styles.btnText, { color: theme.colors.text }]}>Set water times</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={applyReminders}
-          style={[styles.apply, { backgroundColor: theme.colors.primary, opacity: scheduleBusy ? 0.7 : 1 }]}
+          style={[
+            styles.apply,
+            { backgroundColor: theme.colors.primary, opacity: scheduleBusy ? 0.7 : 1 },
+          ]}
           disabled={!user?.uid || scheduleBusy}
         >
           <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
@@ -405,15 +477,41 @@ export default function SettingsScreen() {
             await cancelAllReminders();
             Alert.alert("Reminders", "Canceled all reminders.");
           }}
-          style={[styles.apply, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
+          style={[
+            styles.apply,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 },
+          ]}
         >
           <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Cancel All</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Data */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Data</Text>
+      <Card>
+        <SectionHeader title="Integrations & Privacy" />
+        <ToggleRow
+          label="Fitness sync (steps)"
+          value={integrations.fitnessSync}
+          onChange={(v) => toggleIntegration("fitnessSync", v)}
+        />
+        <ToggleRow
+          label="Health sync (iOS Health / Google Fit)"
+          value={integrations.healthSync}
+          onChange={(v) => toggleIntegration("healthSync", v)}
+        />
+        <ToggleRow
+          label="Analytics"
+          value={integrations.analytics}
+          onChange={(v) => toggleIntegration("analytics", v)}
+        />
+        <ToggleRow
+          label="Crash reports"
+          value={integrations.crashReports}
+          onChange={(v) => toggleIntegration("crashReports", v)}
+        />
+      </Card>
+
+      <Card>
+        <SectionHeader title="Data" />
         <TouchableOpacity
           onPress={async () => {
             if (!user?.uid) return Alert.alert("Sign in required");
@@ -429,7 +527,10 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowImport((s) => !s)}
-          style={[styles.apply, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
+          style={[
+            styles.apply,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 },
+          ]}
         >
           <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
             {showImport ? "Hide import" : "Import from pasted JSON"}
@@ -438,7 +539,16 @@ export default function SettingsScreen() {
         {showImport && (
           <>
             <TextInput
-              style={[styles.input, { height: 140, textAlignVertical: "top", backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+              style={[
+                styles.input,
+                {
+                  height: 140,
+                  textAlignVertical: "top",
+                  backgroundColor: theme.colors.surface2,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text,
+                },
+              ]}
               multiline
               placeholder="Paste export JSON here"
               placeholderTextColor={theme.colors.textMuted}
@@ -451,7 +561,10 @@ export default function SettingsScreen() {
                 if (!importText.trim()) return Alert.alert("Import", "Paste a valid JSON first.");
                 try {
                   const res = await importFromJson(user.uid, importText.trim());
-                  Alert.alert("Import complete", `Activities: ${res.activities}\nCustom items: ${res.customs}\nRoutines: ${res.routines}`);
+                  Alert.alert(
+                    "Import complete",
+                    `Activities: ${res.activities}\nCustom items: ${res.customs}\nRoutines: ${res.routines}`
+                  );
                   setImportText("");
                 } catch (e: any) {
                   Alert.alert("Import failed", e?.message || "Invalid JSON.");
@@ -468,18 +581,38 @@ export default function SettingsScreen() {
             await clearLocalCache(user?.uid || null);
             Alert.alert("Cache cleared", "Local caches removed.");
           }}
-          style={[styles.apply, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 }]}
+          style={[
+            styles.apply,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, borderWidth: 1 },
+          ]}
         >
           <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>Clear local cache</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Account */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Account</Text>
-        <Text style={[styles.label, { color: theme.colors.text }]}>Password (for delete)</Text>
+      <Card>
+        <SectionHeader title="Security" />
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+          <TouchableOpacity
+            onPress={onSendVerification}
+            style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+          >
+            <Text style={[styles.btnText, { color: theme.colors.text }]}>Send verification email</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onResetPassword}
+            style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+          >
+            <Text style={[styles.btnText, { color: theme.colors.text }]}>Reset password</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.label, { color: theme.colors.text, marginTop: 10 }]}>Password (for delete)</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text }]}
+          style={[
+            styles.input,
+            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text },
+          ]}
           placeholder="Password"
           placeholderTextColor={theme.colors.textMuted}
           secureTextEntry
@@ -498,15 +631,17 @@ export default function SettingsScreen() {
         >
           <Text style={styles.dangerText}>{busy ? "Deleting..." : "Delete my account"}</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Session */}
-      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Session</Text>
-        <TouchableOpacity onPress={logout} style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+      <Card>
+        <SectionHeader title="Session" />
+        <TouchableOpacity
+          onPress={logout}
+          style={[styles.btn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+        >
           <Text style={[styles.btnText, { color: theme.colors.text }]}>Sign out</Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
       {/* Meals modal */}
       <MealsTimesModal
@@ -543,6 +678,24 @@ export default function SettingsScreen() {
   );
 }
 
+function ToggleRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  const { theme } = useTheme();
+  return (
+    <View style={styles.switchRow}>
+      <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>{label}</Text>
+      <Switch value={value} onValueChange={onChange} />
+    </View>
+  );
+}
+
 function MealsTimesModal({
   visible,
   onClose,
@@ -562,8 +715,13 @@ function MealsTimesModal({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalBody, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.section, { color: theme.colors.text }]}>Meal times</Text>
+        <View
+          style={[
+            styles.modalBody,
+            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+          ]}
+        >
+          <SectionHeader title="Meal times" />
           <LabeledTime label="Breakfast" value={bTime} onChange={(d) => onChange("b", d)} />
           <LabeledTime label="Lunch" value={lTime} onChange={(d) => onChange("l", d)} />
           <LabeledTime label="Dinner" value={dTime} onChange={(d) => onChange("d", d)} />
@@ -595,20 +753,31 @@ function WaterTimesModal({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalBody, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.section, { color: theme.colors.text }]}>Water times</Text>
+        <View
+          style={[
+            styles.modalBody,
+            { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border },
+          ]}
+        >
+          <SectionHeader title="Water times" />
           {times.map((t, i) => (
             <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <View style={{ flex: 1 }}>
                 <LabeledTime label={`Reminder #${i + 1}`} value={t} onChange={(d) => onChange(i, d)} />
               </View>
-              <TouchableOpacity onPress={() => onRemove(i)} style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+              <TouchableOpacity
+                onPress={() => onRemove(i)}
+                style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+              >
                 <Text style={{ color: theme.colors.text }}>Remove</Text>
               </TouchableOpacity>
             </View>
           ))}
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <TouchableOpacity onPress={onAdd} style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}>
+            <TouchableOpacity
+              onPress={onAdd}
+              style={[styles.smallBtn, { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border }]}
+            >
               <Text style={{ color: theme.colors.text }}>Add time</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={[styles.apply, { backgroundColor: theme.colors.primary, flex: 1 }]}>
@@ -644,11 +813,15 @@ function LabeledTime({ label, value, onChange }: { label: string; value: Date; o
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: fonts.bold, fontSize: 20, marginBottom: 8 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
-  section: { fontFamily: fonts.semiBold, fontSize: 16, marginBottom: 8 },
+  sectionSmall: { fontFamily: fonts.semiBold, fontSize: 14 },
   label: { fontFamily: fonts.semiBold, fontSize: 13, marginBottom: 6 },
-  input: { borderRadius: 10, borderWidth: 1, padding: 12, fontFamily: fonts.regular, marginBottom: 8 },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+    fontFamily: fonts.regular,
+    marginBottom: 8,
+  },
   btn: { paddingVertical: 10, borderRadius: 10, borderWidth: 1, alignItems: "center" },
   btnText: { fontFamily: fonts.semiBold },
   apply: { marginTop: 10, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
@@ -657,5 +830,5 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   smallBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
-  modalBody: { borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: 1, padding: 16 },
+  modalBody: { borderTopLeftRadius: 16, borderTopRightRadius: 16, borderTopWidth: 1, padding: 16, maxHeight: "85%" },
 });

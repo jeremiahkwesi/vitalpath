@@ -1,4 +1,3 @@
-// app/AuthScreen.tsx
 import React, { useMemo, useState } from "react";
 import {
   View,
@@ -11,10 +10,11 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useAuth } from "../src/context/AuthContext";
-import { Ionicons } from "@expo/vector-icons";
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -26,6 +26,9 @@ function mapAuthError(e: any): string {
   if (code.includes("auth/user-not-found"))
     return "No account found with this email.";
   if (code.includes("auth/wrong-password")) return "Incorrect password.";
+  if (code.includes("auth/user-disabled")) return "This account is disabled.";
+  if (code.includes("auth/invalid-credential"))
+    return "Email or password is incorrect.";
   if (code.includes("auth/too-many-requests"))
     return "Too many attempts. Try again later.";
   if (code.includes("auth/email-already-in-use"))
@@ -80,7 +83,10 @@ export default function AuthScreen() {
         await signIn(e, pwd);
       } else {
         await signUp(e, pwd);
-        Alert.alert("Welcome", "Account created. You are signed in.");
+        Alert.alert(
+          "Welcome",
+          "Account created. Let's complete your profile."
+        );
       }
     } catch (err: any) {
       Alert.alert("Authentication", mapAuthError(err));
@@ -97,11 +103,16 @@ export default function AuthScreen() {
     }
     try {
       await resetPassword(e);
-      Alert.alert("Password reset", "We sent a reset link to your email.");
+      Alert.alert(
+        "Password reset",
+        "We sent a reset link to your email. Check Spam if you don't see it."
+      );
     } catch (err: any) {
       Alert.alert("Reset", mapAuthError(err));
     }
   };
+
+  const isSignup = mode === "signup";
 
   return (
     <KeyboardAvoidingView
@@ -109,21 +120,73 @@ export default function AuthScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={{
-          padding: 16,
-          paddingTop: 32,
-          paddingBottom: 24,
-        }}
+        contentContainerStyle={{ paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          VitalPath
-        </Text>
-        <Text style={{ color: theme.colors.textMuted, marginBottom: 12 }}>
-          {mode === "signin" ? "Sign in to continue" : "Create your account"}
-        </Text>
+        {/* Hero / Brand */}
+        <LinearGradient
+          colors={[theme.colors.primary, "#9C8CFF"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
+          <View style={styles.brandBadge}>
+            <Ionicons name="fitness" size={34} color="#fff" />
+          </View>
+          <Text style={[styles.appName, { color: "#fff" }]}>VitalPath</Text>
+          <Text style={[styles.appSub, { color: "#EAE7FF" }]}>
+            Nutrition and training — personalized
+          </Text>
 
+          {/* Mode toggle */}
+          <View style={styles.modeWrap}>
+            <TouchableOpacity
+              onPress={() => setMode("signin")}
+              style={[
+                styles.modeBtn,
+                {
+                  backgroundColor:
+                    mode === "signin" ? "#fff" : "transparent",
+                  borderColor:
+                    mode === "signin" ? "#fff" : "rgba(255,255,255,0.6)",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modeText,
+                  { color: mode === "signin" ? theme.colors.primary : "#fff" },
+                ]}
+              >
+                Sign in
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setMode("signup")}
+              style={[
+                styles.modeBtn,
+                {
+                  backgroundColor:
+                    mode === "signup" ? "#fff" : "transparent",
+                  borderColor:
+                    mode === "signup" ? "#fff" : "rgba(255,255,255,0.6)",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.modeText,
+                  { color: mode === "signup" ? theme.colors.primary : "#fff" },
+                ]}
+              >
+                Sign up
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
+        {/* Auth card */}
         <View
           style={[
             styles.card,
@@ -133,7 +196,9 @@ export default function AuthScreen() {
             },
           ]}
         >
-          <Text style={[styles.label, { color: theme.colors.text }]}>Email</Text>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Email
+          </Text>
           <TextInput
             style={[
               styles.input,
@@ -188,7 +253,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
 
-          {mode === "signup" && (
+          {isSignup && (
             <>
               <Text style={[styles.label, { color: theme.colors.text }]}>
                 Confirm password
@@ -215,7 +280,9 @@ export default function AuthScreen() {
                 <TouchableOpacity
                   onPress={() => setShowPwd2((s) => !s)}
                   style={styles.eye}
-                  accessibilityLabel={showPwd2 ? "Hide password" : "Show password"}
+                  accessibilityLabel={
+                    showPwd2 ? "Hide password" : "Show password"
+                  }
                 >
                   <Ionicons
                     name={showPwd2 ? "eye-off-outline" : "eye-outline"}
@@ -266,7 +333,8 @@ export default function AuthScreen() {
           )}
         </View>
 
-        <View style={{ flexDirection: "row", gap: 6, marginTop: 12 }}>
+        {/* Switch auth mode */}
+        <View style={{ flexDirection: "row", gap: 6, paddingHorizontal: 16 }}>
           <Text style={{ color: theme.colors.textMuted }}>
             {mode === "signin"
               ? "Don't have an account?"
@@ -285,14 +353,77 @@ export default function AuthScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <Text
+          style={{
+            color: theme.colors.textMuted,
+            textAlign: "center",
+            marginTop: 16,
+            paddingHorizontal: 16,
+            fontSize: 12,
+          }}
+        >
+          By continuing, you agree to our Terms and Privacy Policy.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: fonts.bold, fontSize: 28, marginBottom: 4 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12 },
+  hero: {
+    paddingHorizontal: 16,
+    paddingTop: 52,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  brandBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  appName: {
+    textAlign: "center",
+    fontFamily: fonts.bold,
+    fontSize: 24,
+    marginTop: 10,
+  },
+  appSub: {
+    textAlign: "center",
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  modeWrap: {
+    flexDirection: "row",
+    gap: 8,
+    alignSelf: "center",
+    marginTop: 12,
+  },
+  modeBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  modeText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+  },
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginTop: 14,
+    marginHorizontal: 16,
+  },
   label: { fontFamily: fonts.semiBold, marginTop: 6, marginBottom: 6 },
   input: {
     borderRadius: 10,

@@ -3,7 +3,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { fonts } from "../constants/fonts";
 import { useTheme } from "../ui/ThemeProvider";
-import Card from "../ui/components/Card";
+import { Card, SectionHeader } from "../ui/components/UKit";
 
 export default function Achievements({
   uid,
@@ -17,19 +17,24 @@ export default function Achievements({
 
   return (
     <Card style={{ marginBottom: 12 }}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>
-        New Badges
-      </Text>
+      <SectionHeader title="New badges" />
       <View style={styles.row}>
         {newly.map((b, idx) => (
           <View
             key={`${b}-${idx}`}
             style={[
               styles.badge,
-              { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+              {
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+              },
             ]}
           >
-            <Text style={[styles.badgeText, { color: theme.colors.text }]}>{b}</Text>
+            <Text
+              style={[styles.badgeText, { color: theme.colors.text }]}
+            >
+              {b}
+            </Text>
           </View>
         ))}
       </View>
@@ -41,7 +46,6 @@ export default function Achievements({
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: fonts.semiBold, fontSize: 16, marginBottom: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   badge: {
     paddingHorizontal: 10,

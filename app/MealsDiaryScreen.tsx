@@ -1,4 +1,3 @@
-// app/MealsDiaryScreen.tsx
 import React, { useMemo, useState } from "react";
 import {
   View,
@@ -25,7 +24,21 @@ export default function MealsDiaryScreen() {
     fat: string;
   } | null>(null);
 
-  const meals = useMemo(() => todayActivity?.meals || [], [todayActivity]);
+  const meals = useMemo(
+    () => todayActivity?.meals || [],
+    [todayActivity]
+  );
+  const grouped = useMemo(() => {
+    const map: Record<string, any[]> = {
+      breakfast: [],
+      lunch: [],
+      dinner: [],
+      snack: [],
+    };
+    for (const m of meals) map[m.type]?.push(m);
+    return map;
+  }, [meals]);
+
   const totals = useMemo(() => {
     const c = meals.reduce((a, m) => a + (m.calories || 0), 0);
     const p = meals.reduce((a, m) => a + (m.macros?.protein || 0), 0);
@@ -60,9 +73,51 @@ export default function MealsDiaryScreen() {
   const del = (id: string) => {
     Alert.alert("Delete meal", "Remove this meal from today?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => removeMeal(id) },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => removeMeal(id),
+      },
     ]);
   };
+
+  const Stat = ({
+    label,
+    value,
+  }: {
+    label: string;
+    value: string | number;
+  }) => (
+    <View
+      style={[
+        styles.stat,
+        {
+          backgroundColor: theme.colors.surface2,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <Text
+        style={{
+          color: theme.colors.text,
+          fontFamily: fonts.semiBold,
+          fontSize: 16,
+        }}
+      >
+        {value}
+      </Text>
+      <Text
+        style={{
+          color: theme.colors.textMuted,
+          fontFamily: fonts.regular,
+          fontSize: 12,
+          marginTop: 2,
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
 
   return (
     <ScrollView
@@ -74,18 +129,25 @@ export default function MealsDiaryScreen() {
         Today’s Meals
       </Text>
 
+      {/* Summary */}
       <View
         style={[
           styles.summary,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
         ]}
       >
         <Text style={[styles.sumTitle, { color: theme.colors.text }]}>
           Totals
         </Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          {totals.calories} kcal • P{totals.protein} C{totals.carbs} F{totals.fat}
-        </Text>
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+          <Stat label="kcal" value={totals.calories} />
+          <Stat label="Protein (g)" value={totals.protein} />
+          <Stat label="Carbs (g)" value={totals.carbs} />
+          <Stat label="Fat (g)" value={totals.fat} />
+        </View>
       </View>
 
       {meals.length === 0 ? (
@@ -93,156 +155,253 @@ export default function MealsDiaryScreen() {
           No meals yet. Use Search or Scan to add one.
         </Text>
       ) : (
-        meals.map((m: any) => (
-          <View
-            key={m.id}
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.title, { color: theme.colors.text }]}>{m.name}</Text>
-            <Text style={{ color: theme.colors.textMuted, marginBottom: 6 }}>
-              {m.type} • {m.calories} kcal • P{m.macros?.protein} C
-              {m.macros?.carbs} F{m.macros?.fat}
-            </Text>
+        (["breakfast", "lunch", "dinner", "snack"] as const).map(
+          (sec) =>
+            grouped[sec].length && (
+              <View key={`sec-${sec}`}>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontFamily: fonts.semiBold,
+                    marginTop: 12,
+                    marginBottom: 6,
+                  }}
+                >
+                  {sec[0].toUpperCase() + sec.slice(1)}
+                </Text>
+                {grouped[sec].map((m: any) => (
+                  <View
+                    key={m.id}
+                    style={[
+                      styles.card,
+                      {
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.title, { color: theme.colors.text }]}
+                    >
+                      {m.name}
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.colors.textMuted,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {m.type} • {m.calories} kcal • P{m.macros?.protein} C
+                      {m.macros?.carbs} F{m.macros?.fat}
+                    </Text>
+                    {!!m.micros &&
+                      Object.keys(m.micros).length > 0 && (
+                        <Text
+                          style={{
+                            color: theme.colors.textMuted,
+                            fontSize: 12,
+                          }}
+                        >
+                          Micros:{" "}
+                          {Object.entries(m.micros)
+                            .slice(0, 6)
+                            .map(([k, v]) => `${k} ${v}`)
+                            .join(" · ")}
+                        </Text>
+                      )}
 
-            {editing && editing.id === m.id ? (
-              <>
-                <Row label="Calories">
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface2,
-                        borderColor: theme.colors.border,
-                        color: theme.colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editing.calories}
-                    onChangeText={(t) =>
-                      setEditing((s) => s && { ...s, calories: t })
-                    }
-                  />
-                </Row>
-                <Row label="Protein">
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface2,
-                        borderColor: theme.colors.border,
-                        color: theme.colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editing.protein}
-                    onChangeText={(t) =>
-                      setEditing((s) => s && { ...s, protein: t })
-                    }
-                  />
-                </Row>
-                <Row label="Carbs">
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface2,
-                        borderColor: theme.colors.border,
-                        color: theme.colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editing.carbs}
-                    onChangeText={(t) =>
-                      setEditing((s) => s && { ...s, carbs: t })
-                    }
-                  />
-                </Row>
-                <Row label="Fat">
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface2,
-                        borderColor: theme.colors.border,
-                        color: theme.colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editing.fat}
-                    onChangeText={(t) =>
-                      setEditing((s) => s && { ...s, fat: t })
-                    }
-                  />
-                </Row>
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                  <TouchableOpacity
-                    onPress={save}
-                    style={[
-                      styles.smallBtn,
-                      { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                    ]}
-                  >
-                    <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                      Save
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setEditing(null)}
-                    style={[
-                      styles.smallBtn,
-                      { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
-                    ]}
-                  >
-                    <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                      Cancel
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  onPress={() => startEdit(m)}
-                  style={[
-                    styles.smallBtn,
-                    { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
-                  ]}
-                >
-                  <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
-                    Edit
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => del(m.id)}
-                  style={[
-                    styles.smallBtn,
-                    { backgroundColor: "#FF6B6B", borderColor: "#FF6B6B" },
-                  ]}
-                >
-                  <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
-                    Delete
-                  </Text>
-                </TouchableOpacity>
+                    {editing && editing.id === m.id ? (
+                      <>
+                        <Row label="Calories">
+                          <TextInput
+                            style={[
+                              styles.input,
+                              {
+                                backgroundColor: theme.colors.surface2,
+                                borderColor: theme.colors.border,
+                                color: theme.colors.text,
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={editing.calories}
+                            onChangeText={(t) =>
+                              setEditing(
+                                (s) => s && { ...s, calories: t }
+                              )
+                            }
+                          />
+                        </Row>
+                        <Row label="Protein">
+                          <TextInput
+                            style={[
+                              styles.input,
+                              {
+                                backgroundColor:
+                                  theme.colors.surface2,
+                                borderColor: theme.colors.border,
+                                color: theme.colors.text,
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={editing.protein}
+                            onChangeText={(t) =>
+                              setEditing(
+                                (s) => s && { ...s, protein: t }
+                              )
+                            }
+                          />
+                        </Row>
+                        <Row label="Carbs">
+                          <TextInput
+                            style={[
+                              styles.input,
+                              {
+                                backgroundColor:
+                                  theme.colors.surface2,
+                                borderColor: theme.colors.border,
+                                color: theme.colors.text,
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={editing.carbs}
+                            onChangeText={(t) =>
+                              setEditing((s) => s && { ...s, carbs: t })
+                            }
+                          />
+                        </Row>
+                        <Row label="Fat">
+                          <TextInput
+                            style={[
+                              styles.input,
+                              {
+                                backgroundColor:
+                                  theme.colors.surface2,
+                                borderColor: theme.colors.border,
+                                color: theme.colors.text,
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={editing.fat}
+                            onChangeText={(t) =>
+                              setEditing((s) => s && { ...s, fat: t })
+                            }
+                          />
+                        </Row>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            gap: 8,
+                            marginTop: 8,
+                          }}
+                        >
+                          <TouchableOpacity
+                            onPress={save}
+                            style={[
+                              styles.smallBtn,
+                              {
+                                backgroundColor:
+                                  theme.colors.primary,
+                                borderColor: theme.colors.primary,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                color: "#fff",
+                                fontFamily: fonts.semiBold,
+                              }}
+                            >
+                              Save
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setEditing(null)}
+                            style={[
+                              styles.smallBtn,
+                              {
+                                backgroundColor:
+                                  theme.colors.surface2,
+                                borderColor: theme.colors.border,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                color: theme.colors.text,
+                                fontFamily: fonts.semiBold,
+                              }}
+                            >
+                              Cancel
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    ) : (
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => startEdit(m)}
+                          style={[
+                            styles.smallBtn,
+                            {
+                              backgroundColor:
+                                theme.colors.surface2,
+                              borderColor: theme.colors.border,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: theme.colors.text,
+                              fontFamily: fonts.semiBold,
+                            }}
+                          >
+                            Edit
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => del(m.id)}
+                          style={[
+                            styles.smallBtn,
+                            {
+                              backgroundColor: "#FF6B6B",
+                              borderColor: "#FF6B6B",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontFamily: fonts.semiBold,
+                            }}
+                          >
+                            Delete
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
-            )}
-          </View>
-        ))
+            )
+        )
       )}
     </ScrollView>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   const { theme } = useTheme();
   return (
     <View style={{ marginTop: 6 }}>
-      <Text style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}>
+      <Text
+        style={{ color: theme.colors.text, fontFamily: fonts.semiBold }}
+      >
         {label}
       </Text>
       {children}
@@ -253,8 +412,21 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 22, marginBottom: 8 },
   summary: { borderRadius: 12, borderWidth: 1, padding: 12 },
-  sumTitle: { fontFamily: fonts.semiBold, marginBottom: 6, fontSize: 16 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
+  sumTitle: { fontFamily: fonts.semiBold, fontSize: 16 },
+  stat: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minWidth: 100,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 12,
+  },
   title: { fontFamily: fonts.semiBold, fontSize: 16 },
   input: {
     borderRadius: 10,

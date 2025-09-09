@@ -1,4 +1,3 @@
-// src/ui/components/Card.tsx
 import React from "react";
 import { View, StyleSheet, ViewStyle } from "react-native";
 import { useTheme } from "../ThemeProvider";
@@ -15,8 +14,11 @@ export default function Card({
     <View
       style={[
         styles.card,
-        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        theme.shadow.md,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+        theme.shadows.md,
         style,
       ]}
     >

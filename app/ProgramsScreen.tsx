@@ -1,4 +1,3 @@
-// app/ProgramsScreen.tsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -10,7 +9,9 @@ import {
   SectionList,
   ListRenderItemInfo,
   Switch,
+  ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
 import { useNavigation } from "@react-navigation/native";
@@ -28,7 +29,6 @@ import {
   getExerciseFavorites,
   toggleExerciseFavorite,
 } from "../src/utils/exerciseFavorites";
-import { Ionicons } from "@expo/vector-icons";
 
 export default function ProgramsScreen() {
   const { theme } = useTheme();
@@ -42,6 +42,22 @@ export default function ProgramsScreen() {
   const [results, setResults] = useState<Exercise[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favNames, setFavNames] = useState<string[]>([]);
+  const [group, setGroup] = useState<string>("All");
+
+  const MUSCLE_GROUPS = [
+    "All",
+    "Chest",
+    "Back",
+    "Shoulders",
+    "Quads",
+    "Hamstrings",
+    "Glutes",
+    "Core",
+    "Biceps",
+    "Triceps",
+    "Forearms",
+    "Calves",
+  ];
 
   const uid = user?.uid || null;
 
@@ -62,7 +78,7 @@ export default function ProgramsScreen() {
       }
       setLoading(true);
       try {
-        const data = await searchExercises(q, { limit: 120 });
+        const data = await searchExercises(q, { limit: 200 });
         if (active) setResults(data);
       } finally {
         setLoading(false);
@@ -76,10 +92,22 @@ export default function ProgramsScreen() {
   }, [query]);
 
   const filtered = useMemo(() => {
-    if (!favoritesOnly) return results;
+    let base = results;
+    if (group !== "All") {
+      base = base.filter((e) => {
+        const primary = (
+          e.primaryMuscles?.[0] || e.category || "Other"
+        ).toLowerCase();
+        return (
+          primary.includes(group.toLowerCase()) ||
+          (e.category || "").toLowerCase().includes(group.toLowerCase())
+        );
+      });
+    }
+    if (!favoritesOnly) return base;
     if (!favNames.length) return [];
-    return results.filter((e) => favNames.includes(e.name.toLowerCase()));
-  }, [results, favoritesOnly, favNames]);
+    return base.filter((e) => favNames.includes(e.name.toLowerCase()));
+  }, [results, favoritesOnly, favNames, group]);
 
   const sections = useMemo(() => groupByPrimaryMuscle(filtered), [filtered]);
 
@@ -88,14 +116,19 @@ export default function ProgramsScreen() {
       await appendExerciseToRoutineDraft(uid, e);
       h.impact("light");
       toast.success(`${e.name} added to Builder`);
-      nav.navigate("RoutineBuilder", { addExercise: { id: e.id, name: e.name } });
+      nav.navigate("RoutineBuilder", {
+        addExercise: { id: e.id, name: e.name },
+      });
     },
     [h, nav, toast, uid]
   );
 
   const onToggleFav = useCallback(
     async (e: Exercise) => {
-      const nowFav = await toggleExerciseFavorite(uid, { name: e.name, id: e.id });
+      const nowFav = await toggleExerciseFavorite(uid, {
+        name: e.name,
+        id: e.id,
+      });
       const next = await getExerciseFavorites(uid);
       setFavNames(next.map((f) => f.name.toLowerCase()));
       toast.info(nowFav ? "Added to favorites" : "Removed from favorites");
@@ -105,22 +138,40 @@ export default function ProgramsScreen() {
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Exercise>) => {
-      const muscles = [...(item.primaryMuscles || []), ...(item.secondaryMuscles || [])];
+      const muscles = [
+        ...(item.primaryMuscles || []),
+        ...(item.secondaryMuscles || []),
+      ];
       const steps = getHowToSteps(item).slice(0, 3);
       const fav = favNames.includes(item.name.toLowerCase());
       return (
         <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={2}>
+            <Text
+              style={[styles.name, { color: theme.colors.text }]}
+              numberOfLines={2}
+            >
               {item.name}
             </Text>
-            <Text style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={2}>
-              {muscles.length ? muscles.join(", ") : "Target: General / Bodyweight"}
+            <Text
+              style={{ color: theme.colors.textMuted, fontSize: 12 }}
+              numberOfLines={2}
+            >
+              {muscles.length
+                ? muscles.join(", ")
+                : "Target: General / Bodyweight"}
             </Text>
             {steps.length > 0 && (
               <View style={{ marginTop: 4 }}>
                 {steps.map((s, i) => (
-                  <Text key={i} style={{ color: theme.colors.textMuted, fontSize: 12 }} numberOfLines={2}>
+                  <Text
+                    key={i}
+                    style={{
+                      color: theme.colors.textMuted,
+                      fontSize: 12,
+                    }}
+                    numberOfLines={2}
+                  >
                     {i + 1}. {s}
                   </Text>
                 ))}
@@ -132,7 +183,11 @@ export default function ProgramsScreen() {
               onPress={() => onToggleFav(item)}
               accessibilityLabel="Toggle favorite"
             >
-              <Ionicons name={fav ? "star" : "star-outline"} size={20} color={fav ? "#F4C20D" : theme.colors.text} />
+              <Ionicons
+                name={fav ? "star" : "star-outline"}
+                size={20}
+                color={fav ? "#F4C20D" : theme.colors.text}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, { backgroundColor: theme.colors.primary }]}
@@ -144,12 +199,28 @@ export default function ProgramsScreen() {
         </View>
       );
     },
-    [addToBuilder, onToggleFav, favNames, theme.colors.border, theme.colors.primary, theme.colors.text, theme.colors.textMuted]
+    [
+      addToBuilder,
+      onToggleFav,
+      favNames,
+      theme.colors.border,
+      theme.colors.primary,
+      theme.colors.text,
+      theme.colors.textMuted,
+    ]
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.appBg, padding: 16 }}>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Browse Exercises</Text>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.colors.appBg,
+        padding: 16,
+      }}
+    >
+      <Text style={[styles.title, { color: theme.colors.text }]}>
+        Browse Exercises
+      </Text>
       <Text style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
         Grouped by target muscle. Star to favorite. Add to Builder.
       </Text>
@@ -158,7 +229,12 @@ export default function ProgramsScreen() {
         <TextInput
           style={[
             styles.input,
-            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border, color: theme.colors.text, flex: 1 },
+            {
+              backgroundColor: theme.colors.surface2,
+              borderColor: theme.colors.border,
+              color: theme.colors.text,
+              flex: 1,
+            },
           ]}
           placeholder="Search (e.g., bench, squat, plank)"
           placeholderTextColor={theme.colors.textMuted}
@@ -168,8 +244,15 @@ export default function ProgramsScreen() {
           returnKeyType="search"
         />
         {!!query && (
-          <TouchableOpacity onPress={() => setQuery("")} accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={20} color={theme.colors.textMuted} />
+          <TouchableOpacity
+            onPress={() => setQuery("")}
+            accessibilityLabel="Clear search"
+          >
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
         )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -178,8 +261,45 @@ export default function ProgramsScreen() {
         </View>
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, marginTop: 8 }}
+      >
+        {MUSCLE_GROUPS.map((g) => {
+          const active = group === g;
+          return (
+            <TouchableOpacity
+              key={g}
+              onPress={() => setGroup(g)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                backgroundColor: active
+                  ? theme.colors.primary
+                  : theme.colors.surface2,
+              }}
+            >
+              <Text
+                style={{
+                  color: active ? "#fff" : theme.colors.text,
+                  fontFamily: fonts.semiBold,
+                }}
+              >
+                {g}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       {loading ? (
-        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>Searching…</Text>
+        <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
+          Searching…
+        </Text>
       ) : sections.length === 0 ? (
         <Text style={{ color: theme.colors.textMuted, marginTop: 8 }}>
           {query ? "No matches." : "Try “bench press”, “squat”, “plank”…"}
@@ -190,7 +310,14 @@ export default function ProgramsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           renderSectionHeader={({ section }) => (
-            <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>{section.title}</Text>
+            <Text
+              style={[
+                styles.sectionHeader,
+                { color: theme.colors.textMuted },
+              ]}
+            >
+              {section.title}
+            </Text>
           )}
           stickySectionHeadersEnabled
           showsVerticalScrollIndicator={false}
@@ -210,7 +337,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontFamily: fonts.regular,
   },
-  sectionHeader: { fontFamily: fonts.semiBold, marginTop: 12, marginBottom: 6 },
+  sectionHeader: {
+    fontFamily: fonts.semiBold,
+    marginTop: 12,
+    marginBottom: 6,
+  },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -219,6 +350,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   name: { fontSize: 16, fontFamily: fonts.semiBold },
-  btn: { borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", minWidth: 80 },
+  btn: {
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    minWidth: 80,
+  },
   btnText: { color: "#fff", fontFamily: fonts.semiBold, fontSize: 12 },
 });

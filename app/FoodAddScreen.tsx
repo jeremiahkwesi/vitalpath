@@ -1,4 +1,3 @@
-// app/FoodAddScreen.tsx
 import React, { useMemo, useState } from "react";
 import {
   View,
@@ -6,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
 import { useTheme } from "../src/ui/ThemeProvider";
 import { fonts } from "../src/constants/fonts";
@@ -13,6 +13,7 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { FoodItem } from "../src/services/foodDb";
 import { useActivity } from "../src/context/ActivityContext";
 import { Ionicons } from "@expo/vector-icons";
+import { Card, SectionHeader, Pill } from "../src/ui/components/UKit";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -38,6 +39,14 @@ export default function FoodAddScreen() {
   const [servings, setServings] = useState<string>("1");
   const [mealType, setMealType] = useState<MealType>("lunch");
 
+  // Optional micros
+  const [microFiber, setMicroFiber] = useState<string>("");
+  const [microSodium, setMicroSodium] = useState<string>("");
+  const [microPotassium, setMicroPotassium] = useState<string>("");
+  const [microVitaminC, setMicroVitaminC] = useState<string>("");
+  const [microCalcium, setMicroCalcium] = useState<string>("");
+  const [microIron, setMicroIron] = useState<string>("");
+
   const scaled = useMemo(() => {
     let factor = 1;
     const gBase = parseServingGrams(food?.serving || "") || 100;
@@ -53,9 +62,16 @@ export default function FoodAddScreen() {
       protein: Math.round((food?.protein || 0) * factor),
       carbs: Math.round((food?.carbs || 0) * factor),
       fat: Math.round((food?.fat || 0) * factor),
-      grams: Math.round((parseServingGrams(food?.serving || "") || 100) * factor),
+      grams: Math.round(
+        (parseServingGrams(food?.serving || "") || 100) * factor
+      ),
     };
   }, [food, mode, grams, servings]);
+
+  const toNum = (s: string) => {
+    const n = Number(String(s).replace(/[^\d.]/g, ""));
+    return Number.isFinite(n) ? n : undefined;
+  };
 
   const save = async () => {
     await addMeal({
@@ -67,36 +83,53 @@ export default function FoodAddScreen() {
         carbs: scaled.carbs,
         fat: scaled.fat,
       },
-      micros: {},
+      micros: {
+        ...(toNum(microFiber) != null ? { fiber: toNum(microFiber)! } : {}),
+        ...(toNum(microSodium) != null ? { sodium: toNum(microSodium)! } : {}),
+        ...(toNum(microPotassium) != null
+          ? { potassium: toNum(microPotassium)! }
+          : {}),
+        ...(toNum(microVitaminC) != null
+          ? { vitaminC: toNum(microVitaminC)! }
+          : {}),
+        ...(toNum(microCalcium) != null ? { calcium: toNum(microCalcium)! } : {}),
+        ...(toNum(microIron) != null ? { iron: toNum(microIron)! } : {}),
+      },
     });
     nav.goBack();
   };
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: theme.colors.appBg, padding: 16 }}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.appBg }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.header, { color: theme.colors.text }]} numberOfLines={3}>
-        {food?.name}
-      </Text>
-      <Text style={{ color: theme.colors.textMuted }}>{food?.serving}</Text>
+      <SectionHeader
+        title="Add food"
+        subtitle="Adjust portion and select meal"
+      />
+      <Card>
+        <Text
+          style={[styles.header, { color: theme.colors.text }]}
+          numberOfLines={3}
+        >
+          {food?.name}
+        </Text>
+        <Text style={{ color: theme.colors.textMuted }}>{food?.serving}</Text>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Measurement</Text>
+      <Card>
+        <SectionHeader title="Measurement" />
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <Toggle
+          <Pill
             label="Servings"
-            active={mode === "servings"}
+            selected={mode === "servings"}
             onPress={() => setMode("servings")}
           />
-          <Toggle
+          <Pill
             label="Grams"
-            active={mode === "grams"}
+            selected={mode === "grams"}
             onPress={() => setMode("grams")}
           />
         </View>
@@ -120,88 +153,155 @@ export default function FoodAddScreen() {
             keyboardType="numeric"
           />
         )}
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Add to</Text>
+      <Card>
+        <SectionHeader title="Add to" />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map((m) => (
-            <Toggle
-              key={m}
-              label={m[0].toUpperCase() + m.slice(1)}
-              active={mealType === m}
-              onPress={() => setMealType(m)}
-            />
-          ))}
+          {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map(
+            (m) => (
+              <Pill
+                key={m}
+                label={m[0].toUpperCase() + m.slice(1)}
+                selected={mealType === m}
+                onPress={() => setMealType(m)}
+              />
+            )
+          )}
         </View>
-      </View>
+      </Card>
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}
-      >
-        <Text style={[styles.sub, { color: theme.colors.text }]}>Nutrition</Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          {scaled.calories} kcal • P{scaled.protein} C{scaled.carbs} F{scaled.fat} •{" "}
-          {scaled.grams} g
+      <Card>
+        <SectionHeader title="Nutrition" />
+        <Text style={{ color: theme.colors.text }}>
+          {scaled.calories} kcal • P{scaled.protein} C{scaled.carbs} F
+          {scaled.fat} • {scaled.grams} g
         </Text>
-      </View>
+
+        <Text
+          style={[styles.sub2, { color: theme.colors.text, marginTop: 8 }]}
+        >
+          Micros (optional)
+        </Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Fiber (g)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            value={microFiber}
+            onChangeText={setMicroFiber}
+          />
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Sodium (mg)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            value={microSodium}
+            onChangeText={setMicroSodium}
+          />
+        </View>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Potassium (mg)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            value={microPotassium}
+            onChangeText={setMicroPotassium}
+          />
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Vitamin C (mg)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            value={microVitaminC}
+            onChangeText={setMicroVitaminC}
+          />
+        </View>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Calcium (mg)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            value={microCalcium}
+            onChangeText={setMicroCalcium}
+          />
+          <TextInput
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                backgroundColor: theme.colors.surface2,
+                borderColor: theme.colors.border,
+                color: theme.colors.text,
+              },
+            ]}
+            placeholder="Iron (mg)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            value={microIron}
+            onChangeText={setMicroIron}
+          />
+        </View>
+      </Card>
 
       <TouchableOpacity
         onPress={save}
         style={[
           styles.btn,
-          { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+          {
+            backgroundColor: theme.colors.primary,
+            borderColor: theme.colors.primary,
+          },
         ]}
       >
         <Text style={{ color: "#fff", fontFamily: fonts.semiBold }}>
           Add to diary
         </Text>
       </TouchableOpacity>
-    </View>
-  );
-}
-
-function Toggle({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { theme } = useTheme();
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={{
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        backgroundColor: active ? theme.colors.primary : theme.colors.surface2,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Text
-        style={{
-          color: active ? "#fff" : theme.colors.text,
-          fontFamily: fonts.semiBold,
-        }}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
+    </ScrollView>
   );
 }
 
@@ -235,7 +335,10 @@ function Stepper({
           }}
           style={[
             styles.roundBtn,
-            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+            {
+              backgroundColor: theme.colors.surface2,
+              borderColor: theme.colors.border,
+            },
           ]}
         >
           <Ionicons name="remove" size={18} color={theme.colors.text} />
@@ -261,7 +364,10 @@ function Stepper({
           }}
           style={[
             styles.roundBtn,
-            { backgroundColor: theme.colors.surface2, borderColor: theme.colors.border },
+            {
+              backgroundColor: theme.colors.surface2,
+              borderColor: theme.colors.border,
+            },
           ]}
         >
           <Ionicons name="add" size={18} color={theme.colors.text} />
@@ -273,8 +379,7 @@ function Stepper({
 
 const styles = StyleSheet.create({
   header: { fontFamily: fonts.bold, fontSize: 20, marginBottom: 4 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
-  sub: { fontFamily: fonts.semiBold, marginBottom: 6 },
+  sub2: { fontFamily: fonts.semiBold },
   input: {
     borderRadius: 10,
     borderWidth: 1,
